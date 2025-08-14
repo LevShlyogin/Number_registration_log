@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
+
+from app.repositories.doc_numbers import DocNumbersRepository
+from app.repositories.documents import DocumentsRepository
+from app.repositories.sessions import SessionsRepository
+from app.repositories.audit import AuditRepository
+from app.models.session import SessionStatus
+from app.models.doc_number import DocNumStatus
+from app.utils.numbering import format_doc_no, is_golden
+
+
+class DocumentsService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.numbers_repo = DocNumbersRepository(session)
+        self.docs_repo = DocumentsRepository(session)
+        self.sessions_repo = SessionsRepository(session)
+        self.audit_repo = AuditRepository(session)
+
+    async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str, is_admin: bool) -> dict:
+        # берем наименьший зарезервированный номер
+        reserved = await self.numbers_repo.get_reserved_for_session(session_id)
+        if not reserved:
+            return {"created": None, "message": "Нет зарезервированных номеров в сессии."}
+        candidate = None
+        for row in reserved:
+            if is_golden(row.numeric) and not is_admin:
+                continue
+            candidate = row.numeric
+            break
+        if candidate is None:
+            return {"created": None, "message": "В пуле только номера ХХХХ00, недоступные обычному пользователю."}
+
+        # создаем документ
+        try:
+            doc = await self.docs_repo.create(
+                {
+                    "numeric": candidate,
+                    "doc_name": doc_name,
+                    "note": note,
+                    "equipment_id": (await self.sessions_repo.get(session_id)).equipment_id,
+                    "user_id": user_id,
+                }
+            )
+            await self.numbers_repo.mark_assigned([candidate])
+            # если больше номеров нет — закрываем сессию
+            rest = await self.numbers_repo.get_reserved_for_session(session_id)
+            if not any((not is_golden(r.numeric) or is_admin) for r in rest):
+                await self.sessions_repo.set_status(session_id, SessionStatus.completed)
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise ValueError("Такой документ уже зарегистрирован.")
+        return {
+            "created": {
+                "id": doc.id,
+                "numeric": doc.numeric,
+                "formatted_no": format_doc_no(doc.numeric),
+            },
+            "message": "Документ создан.",
+        }
+
+    async def edit_document_admin(self, *, document_id: int, username: str, doc_name: str | None, note: str | None) -> dict:
+        doc = await self.docs_repo.get(document_id)
+        if not doc:
+            raise ValueError("Документ не найден.")
+        old = {"doc_name": doc.doc_name, "note": doc.note}
+        changed = {}
+        if doc_name is not None and doc_name != doc.doc_name:
+            changed["Наименование документа"] = [doc.doc_name, doc_name]
+            doc.doc_name = doc_name
+        if note is not None and note != doc.note:
+            changed["Примечание"] = [doc.note, note]
+            doc.note = note
+        if not changed:
+            return {"message": "Изменений нет."}
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            await self.session.rollback()
+            raise ValueError("Такой документ уже зарегистрирован.")
+        await self.audit_repo.add(document_id=doc.id, doc_number=doc.numeric, username=username, diff=changed)
+        await self.session.commit()
+        return {"message": "Изменения сохранены.", "diff": changed}
