@@ -1,49 +1,41 @@
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import lifespan_session
 from app.core.auth import get_current_user, CurrentUser
-from app.schemas.documents import DocumentAssignOne, DocumentOut
 from app.services.documents import DocumentsService
 from app.utils.numbering import format_doc_no
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
-@router.post("/assign-one", response_model=dict)
+@router.post("/assign-one", response_class=HTMLResponse)
 async def assign_one(
-    payload: DocumentAssignOne,
+    request: Request,
+    session_id: str = Form(...),
+    doc_name: str = Form(...),
+    note: str = Form(...),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
     svc = DocumentsService(session)
     try:
         res = await svc.assign_one(
-            session_id=payload.session_id, user_id=user.id, doc_name=payload.doc_name, note=payload.note, is_admin=user.is_admin
+            session_id=session_id, user_id=user.id, doc_name=doc_name, note=note, is_admin=user.is_admin
         )
     except ValueError as e:
+        # Для HTMX вернем читаемую плашку об ошибке
+        if request.headers.get("Hx-Request") == "true":
+            return HTMLResponse(f'<div class="badge" style="color:#b00">Ошибка: {e}</div>', status_code=409)
         raise HTTPException(status_code=409, detail=str(e))
-    return res
 
-
-@router.patch("/{document_id}", response_model=dict)
-async def edit_document_admin(
-    document_id: int,
-    payload: dict,
-    session: AsyncSession = Depends(lifespan_session),
-    user: CurrentUser = Depends(get_current_user),
-):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только админ может редактировать документ.")
-    doc_name = payload.get("doc_name")
-    note = payload.get("note")
-    svc = DocumentsService(session)
-    try:
-        res = await svc.edit_document_admin(document_id=document_id, username=user.username, doc_name=doc_name, note=note)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=409, detail="Такой документ уже зарегистрирован.")
-    return res
+    created = res.get("created")
+    if request.headers.get("Hx-Request") == "true":
+        if created:
+            return HTMLResponse(
+                f'<div class="badge">Документ создан: № <b>{format_doc_no(created["numeric"])}</b></div>'
+            )
+        # нет зарезервированных или только “00” при обычном пользователе
+        return HTMLResponse(f'<div class="badge" style="color:#b00">{res.get("message")}</div>', status_code=200)
+    return JSONResponse(res)

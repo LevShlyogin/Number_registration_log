@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select, func
 from app.core.db import lifespan_session
 from app.models.document import Document
 from app.repositories.equipment import EquipmentRepository
@@ -12,10 +12,15 @@ router = APIRouter(prefix="/suggest", tags=["suggest"])
 
 
 @router.get("/doc-names", response_model=list[str])
-async def suggest_doc_names(q: str | None = None, session: AsyncSession = Depends(lifespan_session)):
+async def suggest_doc_names(
+    q: str | None = None,
+    doc_name: str | None = None,
+    session: AsyncSession = Depends(lifespan_session),
+):
+    term = q or doc_name
     stmt = select(func.distinct(Document.doc_name))
-    if q:
-        stmt = stmt.where(Document.doc_name.ilike(f"%{q}%"))
+    if term:
+        stmt = stmt.where(Document.doc_name.ilike(f"%{term}%"))
     stmt = stmt.order_by(Document.doc_name.asc()).limit(20)
     res = await session.execute(stmt)
     return [r[0] for r in res.fetchall() if r[0]]
