@@ -15,7 +15,7 @@ from app.models import user, equipment, counter, session, doc_number, document, 
 # this is the Alembic Config object
 config = context.config
 if settings.database_url:
-    config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", ""))
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 fileConfig(config.config_file_name)
 

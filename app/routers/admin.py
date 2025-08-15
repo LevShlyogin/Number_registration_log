@@ -13,7 +13,7 @@ from app.core.config import settings
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.get("/golden-suggest", response_model[GoldenSuggestOut])
+@router.get("/golden-suggest", response_model=GoldenSuggestOut)
 async def golden_suggest(
     limit: int = 10,
     session=Depends(lifespan_session),

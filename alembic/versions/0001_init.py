@@ -20,6 +20,7 @@ depends_on = None
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS citext;")
 
+    # создаём типы ENUM один раз, безопасно (checkfirst)
     docnum_status = postgresql.ENUM("reserved", "assigned", "released", name="docnum_status")
     docnum_status.create(op.get_bind(), checkfirst=True)
 
@@ -64,7 +65,15 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False),
         sa.Column("equipment_id", sa.Integer(), sa.ForeignKey("equipment.id", ondelete="RESTRICT"), nullable=False),
         sa.Column("requested_count", sa.Integer(), nullable=False),
-        sa.Column("status", sa.Enum(name="session_status", nullable=False), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "active", "cancelled", "completed", "expired",
+                name="session_status",
+                create_type=False,  # не создавать тип заново
+            ),
+            nullable=False,
+        ),
         sa.Column("ttl_seconds", sa.Integer(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
@@ -75,7 +84,15 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("numeric", sa.BigInteger(), nullable=False, unique=True),
         sa.Column("is_golden", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.Column("status", sa.Enum(name="docnum_status", nullable=False), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "reserved", "assigned", "released",
+                name="docnum_status",
+                create_type=False,  # не создавать тип заново
+            ),
+            nullable=False,
+        ),
         sa.Column("reserved_by", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL")),
         sa.Column("session_id", sa.String(), sa.ForeignKey("sessions.id", ondelete="SET NULL")),
         sa.Column("reserved_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
@@ -107,7 +124,10 @@ def upgrade() -> None:
     )
 
     # bootstrap single row for counter
-    op.execute("INSERT INTO doc_counter (id, base_start, next_normal_start) VALUES (1, 1, 1) ON CONFLICT (id) DO NOTHING;")
+    op.execute(
+        "INSERT INTO doc_counter (id, base_start, next_normal_start) "
+        "VALUES (1, 1, 1) ON CONFLICT (id) DO NOTHING;"
+    )
 
 
 def downgrade() -> None:
