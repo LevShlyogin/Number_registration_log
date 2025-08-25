@@ -61,12 +61,13 @@ class ReportsService:
         station_no: str | None,
         label: str | None,
         factory_no: str | None,
+        order_no: str | None,
         date_from, 
         date_to
     ):
         """Расширенный поиск с дополнительными фильтрами"""
         rows = await self.repo.fetch_extended(
-            station_objects, station_no, label, factory_no, date_from, date_to
+            station_objects, station_no, label, factory_no, order_no, date_from, date_to
         )
         payload = []
         for (
@@ -111,12 +112,13 @@ class ReportsService:
         station_no: str | None,
         label: str | None,
         factory_no: str | None,
+        order_no: str | None,
         date_from, 
         date_to
     ) -> str:
         """Экспорт в Excel с расширенными фильтрами"""
         data = await self.get_rows_extended(
-            station_objects, station_no, label, factory_no, date_from, date_to
+            station_objects, station_no, label, factory_no, order_no, date_from, date_to
         )
         builder = ReportExcelBuilder()
         path = builder.build_report_extended(data)

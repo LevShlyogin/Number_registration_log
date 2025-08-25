@@ -26,35 +26,26 @@ class EquipmentRepository:
         station_no: str | None = None,
         label: str | None = None,
         factory_no: str | None = None,
+        order_no: str | None = None,
         q: str | None = None
     ) -> list[Equipment]:
-        """Поиск оборудования по различным критериям"""
         stmt = select(Equipment)
         conditions = []
-        
-        # Поиск по отдельным полям
-        if station_object:
-            conditions.append(Equipment.station_object.ilike(f"%{station_object}%"))
-        if station_no:
-            conditions.append(Equipment.station_no.ilike(f"%{station_no}%"))
-        if label:
-            conditions.append(Equipment.label.ilike(f"%{label}%"))
-        if factory_no:
-            conditions.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
-        
-        # Поиск по "сборной" строке
+        if station_object: conditions.append(Equipment.station_object.ilike(f"%{station_object}%"))
+        if station_no: conditions.append(Equipment.station_no.ilike(f"%{station_no}%"))
+        if label: conditions.append(Equipment.label.ilike(f"%{label}%"))
+        if factory_no: conditions.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
+        if order_no: conditions.append(Equipment.order_no.ilike(f"%{order_no}%"))
         if q:
             q_conditions = [
                 Equipment.station_object.ilike(f"%{q}%"),
                 Equipment.station_no.ilike(f"%{q}%"),
                 Equipment.label.ilike(f"%{q}%"),
-                Equipment.factory_no.ilike(f"%{q}%")
+                Equipment.factory_no.ilike(f"%{q}%"),
+                Equipment.order_no.ilike(f"%{q}%")
             ]
             conditions.append(or_(*q_conditions))
-        
-        if conditions:
-            stmt = stmt.where(and_(*conditions))
-        
+        if conditions: stmt = stmt.where(and_(*conditions))
         stmt = stmt.order_by(Equipment.id.desc()).limit(50)
         res = await self.session.execute(stmt)
         return res.scalars().all()

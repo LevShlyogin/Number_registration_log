@@ -39,6 +39,7 @@ async def report_json(
     station_no: str | None = Query(default=None),
     label: str | None = Query(default=None),
     factory_no: str | None = Query(default=None),
+    order_no: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     session: AsyncSession = Depends(lifespan_session),
@@ -53,7 +54,7 @@ async def report_json(
         dt = datetime.now()
     stations = _parse_stations(station_object, station_object_raw)
     rows = await svc.get_rows_extended(
-        stations, station_no, label, factory_no, df, dt
+        stations, station_no, label, factory_no, order_no, df, dt
     )
 
     if request.headers.get("Hx-Request") == "true":
@@ -84,6 +85,7 @@ async def report_excel(
     station_no: str | None = Query(default=None),
     label: str | None = Query(default=None),
     factory_no: str | None = Query(default=None),
+    order_no: str | None = Query(default=None),
     date_from: str | None = Query(default=None),
     date_to: str | None = Query(default=None),
     session: AsyncSession = Depends(lifespan_session),
@@ -97,7 +99,7 @@ async def report_excel(
     if df is not None and dt is None:
         dt = datetime.now()
     stations = _parse_stations(station_object, station_object_raw)
-    path = await svc.export_excel_extended(
-        stations, station_no, label, factory_no, df, dt
+    fname = await svc.export_excel_extended(
+        stations, station_no, label, factory_no, order_no, df, dt
     )
-    return JSONResponse({"path": path})
+    return JSONResponse({"path": fname})

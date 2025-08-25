@@ -30,11 +30,20 @@ async def start_session(
     session_id, reserved = await svc.start_session(
         user_id=user.id, equipment_id=equipment_id, requested_count=requested_count, ttl_seconds=ttl
     )
+    
+    # Если запрос пришел из HTMX (форма в UI), вернем HTML-фрагмент,
+    # иначе — JSON для wizard и API-клиентов
     if request.headers.get("Hx-Request") == "true":
         pretty = ", ".join(str(n) for n in reserved) or "—"
         html = f'<div class="badge">Сессия: <b>{session_id}</b><br/>Зарезервировано: {pretty}</div>'
         return HTMLResponse(html)
-    return JSONResponse(ReserveResult(session_id=session_id, reserved_numbers=reserved).model_dump())
+    else:
+        # Для wizard возвращаем JSON
+        return JSONResponse({
+            "session_id": session_id,
+            "reserved_numbers": reserved,
+            "message": "Сессия создана успешно"
+        })
 
 
 @router.post("/{session_id}/cancel", response_model=dict)

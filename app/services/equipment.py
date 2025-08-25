@@ -39,6 +39,7 @@ class EquipmentService:
         station_no: str | None = None,
         label: str | None = None,
         factory_no: str | None = None,
+        order_no: str | None = None,
         q: str | None = None
     ) -> list[Equipment]:
         """Поиск оборудования по различным критериям"""
@@ -47,6 +48,7 @@ class EquipmentService:
             station_no=station_no,
             label=label,
             factory_no=factory_no,
+            order_no=order_no,
             q=q
         )
 

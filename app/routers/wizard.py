@@ -87,7 +87,7 @@ async def wizard_ui(
                         <div class="mb-3">
                             <label class="form-label">№ станционный</label>
                             <input type="text" class="form-control" id="search-station-no" 
-                                   placeholder="Например: ст.3">
+                                   placeholder="Например: 3">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -97,17 +97,28 @@ async def wizard_ui(
                                    placeholder="Например: Т-110">
                         </div>
                         <div class="mb-3">
-                            <label class="text">№ заводской</label>
+                            <label class="form-label">№ заводской</label>
                             <input type="text" class="form-control" id="search-factory-no" 
-                                   placeholder="Например: 120-12,8-8МО">
+                                   placeholder="Например: 12345">
                         </div>
                     </div>
                 </div>
                 
-                <div class="mb-3">
-                    <label class="form-label">Поиск по тексту</label>
-                    <input type="text" class="form-control" id="search-q" 
-                           placeholder="Введите текст для поиска по всем полям">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">№ заказа</label>
+                            <input type="text" class="form-control" id="search-order-no" 
+                                   placeholder="Например: 12345-67-89876">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Поиск по тексту</label>
+                            <input type="text" class="form-control" id="search-q" 
+                                   placeholder="Введите текст для поиска по всем полям">
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -301,6 +312,15 @@ async def wizard_ui(
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">№ заказа</label>
+                                <input type="text" class="form-control" id="report-order-no" 
+                                       placeholder="Например: 12345-67-89876">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -360,36 +380,66 @@ async def wizard_ui(
                 const stationNo = document.getElementById('search-station-no').value;
                 const label = document.getElementById('search-label').value;
                 const factoryNo = document.getElementById('search-factory-no').value;
+                const orderNo = document.getElementById('search-order-no').value;
                 const q = document.getElementById('search-q').value;
                 
                 if (stationObject) params.append('station_object', stationObject);
                 if (stationNo) params.append('station_no', stationNo);
                 if (label) params.append('label', label);
                 if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
                 if (q) params.append('q', q);
                 
-                fetch(`/equipment/search?${params.toString()}`)
-                    .then(response => response.text())
-                    .then(html => {
-                        document.getElementById('search-results').innerHTML = html;
-                    });
+                console.log('Поиск оборудования с параметрами:', params.toString());
+                
+                fetch(`/equipment/search?${params.toString()}`, {
+                    headers: {
+                        'Hx-Request': 'true'  // Добавляем HTMX заголовок
+                    }
+                })
+                .then(response => {
+                    console.log('Ответ поиска получен:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('HTML ответ получен, обновляем результаты');
+                    document.getElementById('search-results').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Ошибка поиска:', error);
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-danger">Ошибка поиска: ${error.message}</div>`;
+                });
             }
             
             function selectEquipment(id) {
+                console.log('Выбираем оборудование:', id);
                 selectedEquipmentId = id;
-                document.getElementById('next-btn-1').disabled = false;
                 
                 // Подсвечиваем выбранный элемент
                 document.querySelectorAll('.equipment-item').forEach(item => {
                     item.classList.remove('selected');
                 });
-                document.querySelector(`[data-equipment-id="${id}"]`).classList.add('selected');
+                const selectedItem = document.querySelector(`[data-equipment-id="${id}"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
+                    
+                    // Показываем информацию о выбранном оборудовании
+                    const header = selectedItem.querySelector('.equipment-header').textContent;
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-success">Выбрано: ${header}</div>`;
+                } else {
+                    // Если элемент не найден (например, после создания), показываем сообщение
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-success">Выбрано оборудование с ID: ${id}</div>`;
+                }
                 
-                // Показываем информацию о выбранном оборудовании
-                const item = document.querySelector(`[data-equipment-id="${id}"]`);
-                const header = item.querySelector('.equipment-header').textContent;
-                document.getElementById('search-results').innerHTML = 
-                    `<div class="alert alert-success">Выбрано: ${header}</div>`;
+                // Активируем кнопку "Далее"
+                document.getElementById('next-btn-1').disabled = false;
+                console.log('Оборудование выбрано, кнопка "Далее" активирована');
             }
             
             function showCreateForm() {
@@ -411,19 +461,41 @@ async def wizard_ui(
                 formData.append('equipment_id', selectedEquipmentId);
                 formData.append('requested_count', count);
                 
+                console.log('Отправляем запрос на резерв:', {equipment_id: selectedEquipmentId, count: count});
+                
                 fetch('/sessions', {
                     method: 'POST',
                     body: formData
                 })
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('reserve-result').innerHTML = html;
-                    // Извлекаем session_id и номера из ответа
-                    const match = html.match(/Сессия: <b>([^<]+)<\/b>/);
-                    if (match) {
-                        currentSessionId = match[1];
-                        document.getElementById('next-btn-2').disabled = false;
+                .then(response => {
+                    console.log('Ответ получен:', response.status, response.statusText);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Данные ответа:', data);
+                    
+                    // Показываем результат резерва
+                    const html = `
+                        <div class="alert alert-success">
+                            <strong>Сессия создана!</strong><br/>
+                            ID: ${data.session_id}<br/>
+                            Зарезервировано номеров: ${data.reserved_numbers.join(', ')}
+                        </div>
+                    `;
+                    document.getElementById('reserve-result').innerHTML = html;
+                    
+                    // Сохраняем session_id и активируем кнопку "Далее"
+                    currentSessionId = data.session_id;
+                    document.getElementById('next-btn-2').disabled = false;
+                    console.log('Кнопка "Далее" активирована, session_id:', currentSessionId);
+                })
+                .catch(error => {
+                    console.error('Ошибка резерва:', error);
+                    document.getElementById('reserve-result').innerHTML = 
+                        `<div class="alert alert-danger">Ошибка при резерве номеров: ${error.message}</div>`;
                 });
             }
             
@@ -484,6 +556,7 @@ async def wizard_ui(
                 const stationNo = document.getElementById('report-station-no').value;
                 const label = document.getElementById('report-label').value;
                 const factoryNo = document.getElementById('report-factory-no').value;
+                const orderNo = document.getElementById('report-order-no').value;
                 
                 if (stationObject) {
                     // Разбиваем на отдельные значения для множественного выбора
@@ -493,6 +566,7 @@ async def wizard_ui(
                 if (stationNo) params.append('station_no', stationNo);
                 if (label) params.append('label', label);
                 if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
                 
                 document.getElementById('report-content').innerHTML = 
                     '<div class="alert alert-info">Отчет загружается...</div>';
@@ -515,6 +589,7 @@ async def wizard_ui(
                 const stationNo = document.getElementById('report-station-no').value;
                 const label = document.getElementById('report-label').value;
                 const factoryNo = document.getElementById('report-factory-no').value;
+                const orderNo = document.getElementById('report-order-no').value;
                 
                 if (stationObject) {
                     const stations = stationObject.split(',').map(s => s.trim()).filter(s => s);
@@ -523,6 +598,7 @@ async def wizard_ui(
                 if (stationNo) params.append('station_no', stationNo);
                 if (label) params.append('label', label);
                 if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
                 
                 window.open(`/reports/excel?${params.toString()}`, '_blank');
             }
