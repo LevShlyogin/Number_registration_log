@@ -17,7 +17,7 @@ async def assign_one(
     request: Request,
     session_id: str = Form(...),
     doc_name: str = Form(...),
-    note: str = Form(...),
+    note: str | None = Form(None),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -44,7 +44,7 @@ async def assign_one(
                 <td>{created["formatted_no"]}</td>
                 <td>{created["reg_date"].strftime('%d.%m.%Y %H:%M')}</td>
                 <td>{created["doc_name"]}</td>
-                <td>{created["note"]}</td>
+                <td>{created["note"] or ''}</td>
                 <td>{equipment.eq_type}</td>
                 <td>{equipment.factory_no or '-'}</td>
                 <td>{equipment.order_no or '-'}</td>

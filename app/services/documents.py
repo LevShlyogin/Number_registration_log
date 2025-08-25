@@ -24,7 +24,7 @@ class DocumentsService:
         self.equipment_repo = EquipmentRepository(session)
         self.users_repo = UsersRepository(session)
 
-    async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str, is_admin: bool) -> dict:
+    async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str | None, is_admin: bool) -> dict:
         # берем наименьший зарезервированный номер
         reserved = await self.numbers_repo.get_reserved_for_session(session_id)
         if not reserved:

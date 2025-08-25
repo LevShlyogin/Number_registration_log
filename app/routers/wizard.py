@@ -231,12 +231,9 @@ async def wizard_ui(
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label class="form-label">Примечание</label>
+                            <label class="form-label">Примечание (необязательно)</label>
                             <input type="text" class="form-control" id="doc-note" 
-                                   placeholder="Введите примечание"
-                                   list="notes-list"
-                                   oninput="suggestNotes(this.value)">
-                            <datalist id="notes-list"></datalist>
+                                   placeholder="Введите примечание (можно оставить пустым)">
                         </div>
                     </div>
                 </div>
@@ -508,24 +505,23 @@ async def wizard_ui(
                 const docName = document.getElementById('doc-name').value;
                 const docNote = document.getElementById('doc-note').value;
                 
-                if (!docName || !docNote) {
-                    alert('Заполните наименование и примечание');
+                if (!docName) {
+                    alert('Заполните наименование');
                     return;
                 }
                 
                 const formData = new FormData();
                 formData.append('session_id', currentSessionId);
                 formData.append('doc_name', docName);
-                formData.append('note', docNote); // FIX: backend expects 'note'
+                if (docNote) formData.append('note', docNote);
                 
                 fetch('/documents/assign-one', {
                     method: 'POST',
-                    headers: { 'Hx-Request': 'true' }, // ensure HTML row is returned
+                    headers: { 'Hx-Request': 'true' },
                     body: formData
                 })
                 .then(response => response.text())
                 .then(html => {
-                    // Добавляем новую строку в таблицу
                     const tbody = document.getElementById('documents-table');
                     tbody.insertAdjacentHTML('beforeend', html);
                 });
@@ -537,17 +533,13 @@ async def wizard_ui(
                     return;
                 }
                 
-                if (confirm('Завершить сессию?')) {
-                    fetch(`/sessions/${currentSessionId}/complete`, {
-                        method: 'POST'
-                    })
+                fetch(`/sessions/${currentSessionId}/complete`, { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.success) {
-                            nextStep();
-                        }
+                        // Всегда идем к отчету, независимо от оставшихся номеров
+                        showStep(4);
+                        showReport();
                     });
-                }
             }
             
             function showReport() {
