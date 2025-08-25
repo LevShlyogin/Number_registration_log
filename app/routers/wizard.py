@@ -516,10 +516,11 @@ async def wizard_ui(
                 const formData = new FormData();
                 formData.append('session_id', currentSessionId);
                 formData.append('doc_name', docName);
-                formData.append('doc_note', docNote);
+                formData.append('note', docNote); // FIX: backend expects 'note'
                 
                 fetch('/documents/assign-one', {
                     method: 'POST',
+                    headers: { 'Hx-Request': 'true' }, // ensure HTML row is returned
                     body: formData
                 })
                 .then(response => response.text())
