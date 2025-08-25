@@ -26,6 +26,20 @@ async def suggest_doc_names(
     return [r[0] for r in res.fetchall() if r[0]]
 
 
+@router.get("/notes", response_model=list[str])
+async def suggest_notes(
+    q: str | None = None,
+    session: AsyncSession = Depends(lifespan_session),
+):
+    """Автодополнение для примечаний документов"""
+    stmt = select(func.distinct(Document.note))
+    if q:
+        stmt = stmt.where(Document.note.ilike(f"%{q}%"))
+    stmt = stmt.order_by(Document.note.asc()).limit(20)
+    res = await session.execute(stmt)
+    return [r[0] for r in res.fetchall() if r[0]]
+
+
 @router.get("/equipment/{field}", response_model=list[str])
 async def suggest_equipment_field(
     field: str,

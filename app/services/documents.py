@@ -7,6 +7,8 @@ from app.repositories.doc_numbers import DocNumbersRepository
 from app.repositories.documents import DocumentsRepository
 from app.repositories.sessions import SessionsRepository
 from app.repositories.audit import AuditRepository
+from app.repositories.equipment import EquipmentRepository
+from app.repositories.users import UsersRepository
 from app.models.session import SessionStatus
 from app.models.doc_number import DocNumStatus
 from app.utils.numbering import format_doc_no, is_golden
@@ -19,6 +21,8 @@ class DocumentsService:
         self.docs_repo = DocumentsRepository(session)
         self.sessions_repo = SessionsRepository(session)
         self.audit_repo = AuditRepository(session)
+        self.equipment_repo = EquipmentRepository(session)
+        self.users_repo = UsersRepository(session)
 
     async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str, is_admin: bool) -> dict:
         # берем наименьший зарезервированный номер
@@ -51,17 +55,27 @@ class DocumentsService:
             if not any((not is_golden(r.numeric) or is_admin) for r in rest):
                 await self.sessions_repo.set_status(session_id, SessionStatus.completed)
             await self.session.commit()
+            
+            # Получаем дополнительную информацию для wizard
+            equipment = await self.equipment_repo.get(doc.equipment_id)
+            user = await self.users_repo.get(doc.user_id)
+            
+            return {
+                "created": {
+                    "id": doc.id,
+                    "numeric": doc.numeric,
+                    "formatted_no": format_doc_no(doc.numeric),
+                    "doc_name": doc.doc_name,
+                    "note": doc.note,
+                    "reg_date": doc.reg_date,
+                    "equipment": equipment,
+                    "user": user,
+                },
+                "message": "Документ создан.",
+            }
         except IntegrityError:
             await self.session.rollback()
             raise ValueError("Такой документ уже зарегистрирован.")
-        return {
-            "created": {
-                "id": doc.id,
-                "numeric": doc.numeric,
-                "formatted_no": format_doc_no(doc.numeric),
-            },
-            "message": "Документ создан.",
-        }
 
     async def edit_document_admin(self, *, document_id: int, username: str, doc_name: str | None, note: str | None) -> dict:
         doc = await self.docs_repo.get(document_id)

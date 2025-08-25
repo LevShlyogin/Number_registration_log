@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,9 +35,26 @@ async def assign_one(
     created = res.get("created")
     if request.headers.get("Hx-Request") == "true":
         if created:
-            return HTMLResponse(
-                f'<div class="badge">Документ создан: № <b>{format_doc_no(created["numeric"])}</b></div>'
-            )
-        # нет зарезервированных или только “00” при обычном пользователе
+            # Возвращаем HTML строку таблицы для wizard
+            equipment = created["equipment"]
+            user_info = created["user"]
+            
+            html = f"""
+            <tr>
+                <td>{created["formatted_no"]}</td>
+                <td>{created["reg_date"].strftime('%d.%m.%Y %H:%M')}</td>
+                <td>{created["doc_name"]}</td>
+                <td>{created["note"]}</td>
+                <td>{equipment.eq_type}</td>
+                <td>{equipment.factory_no or '-'}</td>
+                <td>{equipment.order_no or '-'}</td>
+                <td>{equipment.label or '-'}</td>
+                <td>{equipment.station_no or '-'}</td>
+                <td>{equipment.station_object or '-'}</td>
+                <td>{user_info.username if user_info else '-'}</td>
+            </tr>
+            """
+            return HTMLResponse(html)
+        # нет зарезервированных или только "00" при обычном пользователе
         return HTMLResponse(f'<div class="badge" style="color:#b00">{res.get("message")}</div>', status_code=200)
     return JSONResponse(res)
