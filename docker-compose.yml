@@ -24,6 +24,10 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - APP_ENV=${APP_ENV:-dev}
       - TZ=Europe/Moscow
+    labels:
+      - "log=enabled"
+      - "com.docker.compose.project=reg-journal"
+      - "com.docker.compose.service=api"
     ports:
       - "8000:8000"
     volumes:
