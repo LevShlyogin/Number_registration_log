@@ -10,6 +10,10 @@ class UsersRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get(self, id_: int) -> User | None:
+        res = await self.session.execute(select(User).where(User.id == id_))
+        return res.scalars().first()
+
     async def get_by_username(self, username: str) -> User | None:
         res = await self.session.execute(select(User).where(User.username == username))
         return res.scalars().first()
