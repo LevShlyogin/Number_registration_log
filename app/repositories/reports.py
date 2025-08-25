@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
@@ -69,7 +69,9 @@ class ReportsRepository:
             .join(User, User.id == Document.user_id)
         )
         where = []
-        if station_objects: where.append(Equipment.station_object.in_(station_objects))
+        if station_objects:
+            like_conds = [Equipment.station_object.ilike(f"%{s}%") for s in station_objects]
+            where.append(or_(*like_conds))
         if station_no: where.append(Equipment.station_no.ilike(f"%{station_no}%"))
         if label: where.append(Equipment.label.ilike(f"%{label}%"))
         if factory_no: where.append(Equipment.factory_no.ilike(f"%{factory_no}%"))

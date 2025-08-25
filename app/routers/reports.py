@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import lifespan_session
@@ -102,4 +102,8 @@ async def report_excel(
     fname = await svc.export_excel_extended(
         stations, station_no, label, factory_no, order_no, df, dt
     )
-    return JSONResponse({"path": fname})
+    return FileResponse(
+        path=fname,
+        filename=fname.split('/')[-1],
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )

@@ -572,7 +572,9 @@ async def wizard_ui(
                 document.getElementById('report-content').innerHTML = 
                     '<div class="alert alert-info">Отчет загружается...</div>';
                 
-                fetch(`/reports?${params.toString()}`)
+                fetch(`/reports?${params.toString()}`, {
+                    headers: { 'Hx-Request': 'true' }
+                })
                     .then(response => response.text())
                     .then(html => {
                         document.getElementById('report-content').innerHTML = html;
