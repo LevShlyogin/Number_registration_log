@@ -629,19 +629,7 @@ async def wizard_ui(
             }
             
             function suggestNotes(query) {
-                if (query.length < 2) return;
-                
-                fetch(`/suggest/notes?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(suggestions => {
-                        const datalist = document.getElementById('notes-list');
-                        datalist.innerHTML = '';
-                        suggestions.forEach(suggestion => {
-                            const option = document.createElement('option');
-                            option.value = suggestion;
-                            datalist.appendChild(option);
-                        });
-                    });
+                return; // suggestions disabled for note
             }
         </script>
     </body>

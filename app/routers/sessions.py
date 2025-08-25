@@ -64,23 +64,17 @@ async def complete_session(
     user: CurrentUser = Depends(get_current_user),
 ):
     """Завершение сессии с освобождением неназначенных номеров"""
-    # Получаем все зарезервированные номера для сессии
     numbers_repo = DocNumbersRepository(session)
     sessions_repo = SessionsRepository(session)
-    
-    # Получаем зарезервированные номера
-    reserved = await numbers_repo.get_reserved_for_session(session_id)
-    
-    if reserved:
-        # Освобождаем все неназначенные номера
-        numeric_list = [r.numeric for r in reserved]
-        await numbers_repo.mark_released(numeric_list)
-    
+
+    # Освобождаем все оставшиеся зарезервированные номера этой сессии
+    released_count = await numbers_repo.release_session(session_id)
+
     # Устанавливаем статус сессии как завершенной
     await sessions_repo.set_status(session_id, "completed")
     await session.commit()
-    
-    return {"success": True, "message": "Сессия завершена", "released_count": len(reserved) if reserved else 0}
+
+    return {"success": True, "message": "Сессия завершена", "released_count": released_count}
 
 
 @router.get("/{session_id}")
