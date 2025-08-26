@@ -34,6 +34,7 @@ async def admin_dashboard(
         <title>Админская панель</title>
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <style>
             .admin-section { margin-bottom: 30px; }
             .filter-row { margin-bottom: 20px; }
@@ -276,6 +277,116 @@ async def admin_dashboard(
                 document.getElementById('filter-date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
                 document.getElementById('filter-date-to').value = today.toISOString().split('T')[0];
             });
+            
+            // Функции для редактирования документов
+            function editDocument(documentId) {
+                // Загружаем данные документа
+                fetch(`/documents/${documentId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка загрузки документа');
+                    }
+                    return response.json();
+                })
+                .then(doc => {
+                    // Создаем модальное окно для редактирования
+                    showEditModal(doc);
+                })
+                .catch(error => {
+                    alert('Ошибка: ' + error.message);
+                });
+            }
+            
+            function showEditModal(doc) {
+                // Удаляем существующий модал если есть
+                const existingModal = document.getElementById('editModal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Создаем модальное окно
+                const modalHtml = `
+                    <div class="modal fade" id="editModal" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Редактирование документа ${doc.formatted_no}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="editForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">Наименование документа</label>
+                                            <input type="text" class="form-control" id="edit-doc-name" 
+                                                   value="${doc.doc_name || ''}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Примечание</label>
+                                            <textarea class="form-control" id="edit-note" rows="3">${doc.note || ''}</textarea>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="button" class="btn btn-primary" onclick="saveDocument(${doc.id})">Сохранить</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Добавляем модал в DOM
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Показываем модал
+                const modal = new bootstrap.Modal(document.getElementById('editModal'));
+                modal.show();
+                
+                // Удаляем модал после закрытия
+                document.getElementById('editModal').addEventListener('hidden.bs.modal', function () {
+                    this.remove();
+                });
+            }
+            
+            function saveDocument(documentId) {
+                const docName = document.getElementById('edit-doc-name').value;
+                const note = document.getElementById('edit-note').value;
+                
+                if (!docName.trim()) {
+                    alert('Наименование документа обязательно для заполнения');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('doc_name', docName);
+                formData.append('note', note);
+                
+                // Отправляем PATCH запрос
+                fetch(`/documents/${documentId}`, {
+                    method: 'PATCH',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка при сохранении');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    // Закрываем модал
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                    modal.hide();
+                    
+                    // Показываем сообщение об успехе
+                    alert(result.message || 'Документ успешно обновлен');
+                    
+                    // Обновляем результаты поиска
+                    searchDocuments();
+                })
+                .catch(error => {
+                    alert('Ошибка: ' + error.message);
+                });
+            }
         </script>
     </body>
     </html>
@@ -395,7 +506,7 @@ async def admin_documents(
                 <td>{row['station_object'] or '-'}</td>
                 <td>{row['username']}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="editDocument({row['id']})">
+                    <button class="btn btn-sm btn-primary" onclick="editDocument({row["id"]})">
                         <i class="bi bi-pencil"></i> Изменить
                     </button>
                 </td>
