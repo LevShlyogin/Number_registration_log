@@ -53,26 +53,26 @@ class EquipmentService:
         )
 
     async def _check_duplicates(self, data: dict) -> None:
-        """Проверка на дубли оборудования"""
-        # Если все поля пустые - считаем объект уникальным
-        if not any([
-            data.get('station_object'),
-            data.get('station_no'),
-            data.get('label'),
-            data.get('factory_no')
-        ]):
+        """Проверка на дубликаты перед созданием"""
+        # Если все 4 поля пустые, то дубликатов быть не может
+        if not any([data.get('station_object'), data.get('station_no'), 
+                   data.get('label'), data.get('factory_no')]):
             return
         
-        # Проверяем существование дубля
-        existing = await self.repo.find_duplicate(
+        # Иначе проверяем на дубликаты
+        duplicate = await self.repo.find_duplicate(
             station_object=data.get('station_object'),
             station_no=data.get('station_no'),
             label=data.get('label'),
             factory_no=data.get('factory_no')
         )
         
-        if existing:
+        if duplicate:
             raise HTTPException(
-                status_code=409,
+                status_code=409, 
                 detail="Объект с такими атрибутами уже существует."
             )
+    
+    async def get_all(self, limit: int = 100) -> list[Equipment]:
+        """Получение всех записей оборудования с лимитом"""
+        return await self.repo.get_all(limit=limit)

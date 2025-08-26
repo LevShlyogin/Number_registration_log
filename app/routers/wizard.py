@@ -293,7 +293,7 @@ async def wizard_ui(
                             <div class="mb-3">
                                 <label class="form-label">№ станционный</label>
                                 <input type="text" class="form-control" id="report-station-no" 
-                                       placeholder="Например: ст.3">
+                                       placeholder="Например: 3">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -305,7 +305,7 @@ async def wizard_ui(
                             <div class="mb-3">
                                 <label class="form-label">№ заводской</label>
                                 <input type="text" class="form-control" id="report-factory-no" 
-                                       placeholder="Например: 120-12,8-8МО">
+                                       placeholder="Например: 12345">
                             </div>
                         </div>
                     </div>
@@ -631,6 +631,27 @@ async def wizard_ui(
             function suggestNotes(query) {
                 return; // suggestions disabled for note
             }
+
+            // Переход в админский режим
+            function enterAdminMode() {
+                window.location.href = '/admin-dashboard/dashboard';
+            }
+            
+            // Показываем админскую кнопку для админов
+            function showAdminButton() {
+                const adminSection = document.getElementById('admin-mode-section');
+                if (adminSection) {
+                    adminSection.style.display = 'block';
+                }
+            }
+            
+            // Проверяем права админа при загрузке страницы
+            document.addEventListener('DOMContentLoaded', function() {
+                // Проверяем, является ли пользователь админом
+                // В реальном приложении это можно получить из сервера
+                // Пока что показываем кнопку для всех (можно убрать эту строку)
+                showAdminButton();
+            });
         </script>
     </body>
     </html>

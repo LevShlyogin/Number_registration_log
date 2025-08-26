@@ -57,26 +57,32 @@ class EquipmentRepository:
         label: str | None = None,
         factory_no: str | None = None
     ) -> Equipment | None:
-        """Поиск дубля оборудования"""
+        """Поиск дубликата оборудования"""
+        stmt = select(Equipment)
         conditions = []
         
         if station_object:
-            conditions.append(Equipment.station_object.ilike(station_object))
+            conditions.append(Equipment.station_object.ilike(f"%{station_object}%"))
         if station_no:
-            conditions.append(Equipment.station_no.ilike(station_no))
+            conditions.append(Equipment.station_no.ilike(f"%{station_no}%"))
         if label:
-            conditions.append(Equipment.label.ilike(label))
+            conditions.append(Equipment.label.ilike(f"%{label}%"))
         if factory_no:
-            conditions.append(Equipment.factory_no.ilike(factory_no))
+            conditions.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
         
-        # Если все поля пустые - дубля нет
-        if not conditions:
-            return None
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+            stmt = stmt.limit(1)
+            res = await self.session.execute(stmt)
+            return res.scalars().first()
         
-        # Ищем по комбинации заполненных полей
-        stmt = select(Equipment).where(and_(*conditions))
+        return None
+    
+    async def get_all(self, limit: int = 100) -> list[Equipment]:
+        """Получение всех записей оборудования с лимитом"""
+        stmt = select(Equipment).order_by(Equipment.id.desc()).limit(limit)
         res = await self.session.execute(stmt)
-        return res.scalars().first()
+        return res.scalars().all()
 
     async def list_distinct(self, field: str, q: str | None = None, station_object: str | None = None) -> list[str]:
         col = getattr(Equipment, field)

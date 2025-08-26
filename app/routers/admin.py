@@ -26,7 +26,7 @@ async def golden_suggest(
     svc = AdminService(session)
     nums = await svc.suggest_golden(limit=limit)
     if request.headers.get("Hx-Request") == "true":
-        items = "".join(f'<li class="gold">{n:06d}</li>' for n in nums)
+        items = "".join(f'<li class="golden-number">{n:06d}</li>' for n in nums)
         return HTMLResponse(f"<ul>{items}</ul>")
     return JSONResponse(GoldenSuggestOut(golden_numbers=nums).model_dump())
 
