@@ -3,10 +3,24 @@
 <section>
   <h2>Журнал регистрации УТЗ</h2>
   <ul>
-    <li><a href="/ui/equipment">Оборудование</a></li>
-    <li><a href="/ui/session">Резерв номеров</a></li>
-    <li><a href="/ui/admin">Админ: золотые номера</a></li>
-    <li><a href="/ui/reports">Отчеты</a></li>
+    <li><a href="/wizard">Регистрация номеров</a></li>
+
+    <!-- Админская панель - только для администраторов -->
+    <script>
+      // Проверяем права администратора через API
+      fetch('/admin/check-access')
+        .then(response => {
+          if (response.ok) {
+            // Если пользователь админ, показываем кнопку
+            const adminLink = document.createElement('li');
+            adminLink.innerHTML = '<a href="/admin-dashboard/dashboard" class="admin-panel-link" style="font-weight: bold; color: #dc3545;">🔧 Админская панель</a>';
+            document.querySelector('ul').appendChild(adminLink);
+          }
+        })
+        .catch(() => {
+          // Игнорируем ошибки - просто не показываем кнопку
+        });
+    </script>
   </ul>
 </section>
 {% endblock %}
