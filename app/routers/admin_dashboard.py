@@ -467,15 +467,15 @@ async def admin_equipment(
 @router.get("/documents")
 async def admin_documents(
     request: Request,
-    station_object: list[str] | None = Query(default=None),
-    station_no: str | None = Query(default=None),
+    station_object: list[str] | None = Query(default=None, alias="station-object"),
+    station_no: str | None = Query(default=None, alias="station-no"),
     label: str | None = Query(default=None),
-    factory_no: str | None = Query(default=None),
-    order_no: str | None = Query(default=None),
+    factory_no: str | None = Query(default=None, alias="factory-no"),
+    order_no: str | None = Query(default=None, alias="order-no"),
     username: str | None = Query(default=None),
-    date_from: str | None = Query(default=None),
-    date_to: str | None = Query(default=None),
-    eq_type: str | None = Query(default=None),
+    date_from: str | None = Query(default=None, alias="date-from"),
+    date_to: str | None = Query(default=None, alias="date-to"),
+    eq_type: str | None = Query(default=None, alias="eq-type"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
