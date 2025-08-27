@@ -61,13 +61,14 @@ class ReportsRepository:
         )
         where = []
         if station_objects:
-            # Changed to support partial matching for multiple station_objects
             station_object_conditions = [Equipment.station_object.ilike(f"%{so}%") for so in station_objects]
             where.append(or_(*station_object_conditions))
-        if station_no: where.append(Equipment.station_no.ilike(f"%{station_no}%"))
         if label: where.append(Equipment.label.ilike(f"%{label}%"))
-        if factory_no: where.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
-        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%")) # Added order_no condition
+
+        if station_no: where.append(Equipment.station_no == station_no)
+        if factory_no: where.append(Equipment.factory_no == factory_no)
+        if order_no: where.append(Equipment.order_no == order_no)
+
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
         if where: stmt = stmt.where(and_(*where))
@@ -87,18 +88,23 @@ class ReportsRepository:
             .join(Equipment, Equipment.id == Document.equipment_id)
             .join(User, User.id == Document.user_id)
         )
+
         where = []
+
         if station_objects:
             station_object_conditions = [Equipment.station_object.ilike(f"%{so}%") for so in station_objects]
             where.append(or_(*station_object_conditions))
-        if station_no: where.append(Equipment.station_no.ilike(f"%{station_no}%"))
         if label: where.append(Equipment.label.ilike(f"%{label}%"))
-        if factory_no: where.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
-        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%"))
         if username: where.append(User.username.ilike(f"%{username}%"))
+        
+        if station_no: where.append(Equipment.station_no == station_no)
+        if factory_no: where.append(Equipment.factory_no == factory_no)
+        if order_no: where.append(Equipment.order_no == order_no)
+        
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
         if eq_type: where.append(Equipment.eq_type == eq_type)
+
         if where: stmt = stmt.where(and_(*where))
         stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
         res = await self.session.execute(stmt)

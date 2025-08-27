@@ -82,14 +82,6 @@ class DocumentsService:
         Обновляет данные документа и связанного с ним оборудования,
         сохраняя аудит всех изменений.
         """
-        # --- ОТЛАДКА ---
-        print(f"!!!!!!!!!!!!!! ПОПЫТКА РЕДАКТИРОВАНИЯ ДОКУМЕНТА С ID: {document_id} !!!!!!!!!!!!!!")
-        # --- НОВАЯ РАСШИРЕННАЯ ОТЛАДКА ---
-        print("--------------------------------------------------")
-        print(f"ПОЛУЧЕННЫЕ ДАННЫЕ (data): {data.model_dump()}")
-        print("--------------------------------------------------")
-        # --- КОНЕЦ ОТЛАДКИ ---
-    
         doc = await self.docs_repo.get(document_id)
         if not doc:
             raise ValueError("Документ не найден.")
@@ -98,12 +90,6 @@ class DocumentsService:
         if not equipment:
             raise ValueError("Связанное оборудование для документа не найдено.")
         
-        # --- НОВАЯ РАСШИРЕННАЯ ОТЛАДКА ---
-        print(f"ДАННЫЕ ИЗ БД (doc): doc_name='{doc.doc_name}', note='{doc.note}'")
-        print(f"ДАННЫЕ ИЗ БД (equipment): eq_type='{equipment.eq_type}', station_object='{equipment.station_object}', station_no='{equipment.station_no}', factory_no='{equipment.factory_no}', order_no='{equipment.order_no}', label='{equipment.label}'")
-        print("--------------------------------------------------")
-        # --- КОНЕЦ НОВОЙ ОТЛАДКИ ---
-
         changed = {}
 
         # 1. Проверяем изменения в полях документа (Document)
@@ -139,14 +125,6 @@ class DocumentsService:
         if data.label is not None and data.label != equipment.label:
             changed["Маркировка"] = [equipment.label, data.label]
             equipment.label = data.label
-
-        # --- НОВАЯ РАСШИРЕННАЯ ОТЛАДКА ---
-        if not changed:
-            print("ИТОГ: Изменений не найдено.")
-        else:
-            print(f"ИТОГ: Найдены изменения -> {changed}")
-        print("--------------------------------------------------")
-        # --- КОНЕЦ НОВОЙ ОТЛАДКИ ---
 
         # 3. Если изменений нет, выходим
         if not changed:
