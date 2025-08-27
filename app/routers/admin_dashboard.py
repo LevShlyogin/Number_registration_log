@@ -483,6 +483,13 @@ async def admin_documents(
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
     
+    if station_no: station_no = station_no.strip()
+    if label: label = label.strip()
+    if factory_no: factory_no = factory_no.strip()
+    if order_no: order_no = order_no.strip()
+    if username: username = username.strip()
+    if eq_type: eq_type = eq_type.strip()
+
     svc = ReportsService(session)
     
     # Парсим даты
