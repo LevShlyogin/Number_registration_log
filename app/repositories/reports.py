@@ -49,6 +49,7 @@ class ReportsRepository:
 
     async def fetch_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to):
         """Расширенный поиск с дополнительными фильтрами"""
+        print("!!!!!!!!!!!!!! ЗАПУЩЕНА НОВАЯ ВЕРСИЯ ПОИСКА (С ТОЧНЫМ СОВПАДЕНИЕМ) !!!!!!!!!!!!!!")
         stmt = (
             select(
                 Document.numeric, Document.reg_date, Document.doc_name, Document.note,
@@ -78,6 +79,7 @@ class ReportsRepository:
     
     async def fetch_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None):
         """Расширенный поиск для админов с дополнительными фильтрами"""
+        print("!!!!!!!!!!!!!! ЗАПУЩЕНА НОВАЯ ВЕРСИЯ ПОИСКА (С ТОЧНЫМ СОВПАДЕНИЕМ) !!!!!!!!!!!!!!")
         stmt = (
             select(
                 Document.id, Document.numeric, Document.reg_date, Document.doc_name, Document.note,
