@@ -8,10 +8,12 @@ from app.core.db import lifespan_session
 from app.core.auth import get_current_user, CurrentUser
 from app.services.documents import DocumentsService
 from app.utils.numbering import format_doc_no
-# ### ВАЖНО: Импортируем нашу схему ###
 from app.schemas.admin import AdminDocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+# Мы больше НЕ ИСПОЛЬЗУЕМ функцию get_update_data_from_form. Она удалена.
 
 
 @router.post("/assign-one", response_class=HTMLResponse)
@@ -23,6 +25,7 @@ async def assign_one(
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
+    # Этот эндпоинт не меняется
     svc = DocumentsService(session)
     try:
         res = await svc.assign_one(
@@ -59,33 +62,51 @@ async def assign_one(
     return JSONResponse(res)
 
 
-# ### ИЗМЕНЕНО: Эндпоинт редактирования теперь использует Pydantic-схему ###
+# ### ИЗМЕНЕНО: Объявляем все поля формы прямо в эндпоинте ###
 @router.patch("/{document_id}")
 async def edit_document(
     document_id: int,
-    # FastAPI автоматически соберет данные из FormData в эту Pydantic-модель
-    data: AdminDocumentUpdate = Depends(), 
+    # FastAPI напрямую прочитает эти значения из FormData
+    doc_name: str = Form(...),
+    note: str = Form(...),
+    eq_type: str = Form(...),
+    station_object: str = Form(...),
+    station_no: str = Form(...),
+    factory_no: str = Form(...),
+    order_no: str = Form(...),
+    label: str = Form(...),
+    # Зависимости для сессии и пользователя остаются без изменений
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
     """Редактирование документа и связанного оборудования (только для админов)"""
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
+
+    # Создаем Pydantic-модель вручную из полученных данных формы
+    update_data = AdminDocumentUpdate(
+        doc_name=doc_name,
+        note=note,
+        eq_type=eq_type,
+        station_object=station_object,
+        station_no=station_no,
+        factory_no=factory_no,
+        order_no=order_no,
+        label=label,
+    )
     
     svc = DocumentsService(session)
     try:
-        # ### ИЗМЕНЕНО: Вызываем сервис с новым аргументом `data` ###
+        # Передаем созданную модель в сервис
         result = await svc.edit_document_admin(
             document_id=document_id,
             username=user.username,
-            data=data
+            data=update_data
         )
         return JSONResponse(result)
     except ValueError as e:
-        # 404 Not Found, если документ не найден
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        # Общая ошибка для непредвиденных случаев
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {e}")
 
 
@@ -95,7 +116,7 @@ async def get_document(
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Получение документа для редактирования (только для админов)"""
+    # Этот эндпоинт не меняется
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
     
