@@ -31,12 +31,19 @@ class EquipmentRepository:
     ) -> list[Equipment]:
         stmt = select(Equipment)
         conditions = []
+
+        # Поиск по частичному совпадению для текстовых полей
         if station_object: conditions.append(Equipment.station_object.ilike(f"%{station_object}%"))
-        if station_no: conditions.append(Equipment.station_no.ilike(f"%{station_no}%"))
-        if label: conditions.append(Equipment.label.ilike(f"%{label}%"))
-        if factory_no: conditions.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
-        if order_no: conditions.append(Equipment.order_no.ilike(f"%{order_no}%"))
+        
+        # Точное совпадение для идентификаторов
+        if station_no: conditions.append(Equipment.station_no == station_no)
+        if factory_no: conditions.append(Equipment.factory_no == factory_no)
+        if order_no: conditions.append(Equipment.order_no == order_no)
+        if label: conditions.append(Equipment.label == label) # Маркировку тоже лучше искать точно
+
+        # Глобальный поиск по всем полям
         if q:
+            # Используем ilike для глобального поиска, так как это более ожидаемое поведение
             q_conditions = [
                 Equipment.station_object.ilike(f"%{q}%"),
                 Equipment.station_no.ilike(f"%{q}%"),
@@ -45,11 +52,15 @@ class EquipmentRepository:
                 Equipment.order_no.ilike(f"%{q}%")
             ]
             conditions.append(or_(*q_conditions))
-        if conditions: stmt = stmt.where(and_(*conditions))
+
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        
         stmt = stmt.order_by(Equipment.id.desc()).limit(50)
         res = await self.session.execute(stmt)
         return res.scalars().all()
 
+    # Метод find_duplicate тоже стоит исправить для консистентности
     async def find_duplicate(
         self,
         station_object: str | None = None,
@@ -61,14 +72,11 @@ class EquipmentRepository:
         stmt = select(Equipment)
         conditions = []
         
-        if station_object:
-            conditions.append(Equipment.station_object.ilike(f"%{station_object}%"))
-        if station_no:
-            conditions.append(Equipment.station_no.ilike(f"%{station_no}%"))
-        if label:
-            conditions.append(Equipment.label.ilike(f"%{label}%"))
-        if factory_no:
-            conditions.append(Equipment.factory_no.ilike(f"%{factory_no}%"))
+        # Точное сравнение для предотвращения ложных срабатываний
+        if station_object: conditions.append(Equipment.station_object == station_object)
+        if station_no: conditions.append(Equipment.station_no == station_no)
+        if label: conditions.append(Equipment.label == label)
+        if factory_no: conditions.append(Equipment.factory_no == factory_no)
         
         if conditions:
             stmt = stmt.where(and_(*conditions))

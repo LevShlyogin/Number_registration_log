@@ -22,7 +22,6 @@ def _parse_dt(s: str | None) -> datetime | None:
 
 
 def _parse_stations(station_object: list[str] | None, station_raw: str | None) -> list[str] | None:
-    # поддерживаем и повтор параметра, и CSV-строку из одного поля формы
     if station_object and len(station_object) > 0:
         return station_object
     if station_raw:
@@ -30,18 +29,23 @@ def _parse_stations(station_object: list[str] | None, station_raw: str | None) -
         return parts or None
     return None
 
+def clean_param(p: str | None) -> str | None:
+    if p is None:
+        return None
+    stripped = p.strip()
+    return stripped if stripped else None
 
 @router.get("", response_class=HTMLResponse)
 async def report_json(
     request: Request,
     station_object: list[str] | None = Query(default=None, alias="station_object"),
     station_object_raw: str | None = Query(default=None, alias="station_object"),
-    station_no: str | None = Query(default=None),
-    label: str | None = Query(default=None),
-    factory_no: str | None = Query(default=None),
-    order_no: str | None = Query(default=None),
-    date_from: str | None = Query(default=None),
-    date_to: str | None = Query(default=None),
+    station_no: str | None = Query(default=None, alias="station_no"),
+    label: str | None = Query(default=None, alias="label"),
+    factory_no: str | None = Query(default=None, alias="factory_no"),
+    order_no: str | None = Query(default=None, alias="order_no"),
+    date_from: str | None = Query(default=None, alias="date-from"),
+    date_to: str | None = Query(default=None, alias="date-to"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -52,9 +56,17 @@ async def report_json(
         df = start_of_week()
     if df is not None and dt is None:
         dt = datetime.now()
+
     stations = _parse_stations(station_object, station_object_raw)
+    
     rows = await svc.get_rows_extended(
-        stations, station_no, label, factory_no, order_no, df, dt
+        station_objects=stations, 
+        station_no=clean_param(station_no), 
+        label=clean_param(label), 
+        factory_no=clean_param(factory_no), 
+        order_no=clean_param(order_no), 
+        date_from=df, 
+        date_to=dt
     )
 
     if request.headers.get("Hx-Request") == "true":
@@ -80,14 +92,14 @@ async def report_json(
 @router.get("/excel")
 async def report_excel(
     request: Request,
-    station_object: list[str] | None = Query(default=None, alias="station_object"),
     station_object_raw: str | None = Query(default=None, alias="station_object"),
-    station_no: str | None = Query(default=None),
-    label: str | None = Query(default=None),
-    factory_no: str | None = Query(default=None),
-    order_no: str | None = Query(default=None),
-    date_from: str | None = Query(default=None),
-    date_to: str | None = Query(default=None),
+    station_object: list[str] | None = Query(default=None, alias="station_object"),
+    station_no: str | None = Query(default=None, alias="station_no"),
+    label: str | None = Query(default=None, alias="label"),
+    factory_no: str | None = Query(default=None, alias="factory_no"),
+    order_no: str | None = Query(default=None, alias="order_no"),
+    date_from: str | None = Query(default=None, alias="date-from"),
+    date_to: str | None = Query(default=None, alias="date-to"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -98,12 +110,22 @@ async def report_excel(
         df = start_of_week()
     if df is not None and dt is None:
         dt = datetime.now()
+
     stations = _parse_stations(station_object, station_object_raw)
+
     fname = await svc.export_excel_extended(
-        stations, station_no, label, factory_no, order_no, df, dt
+        station_objects=stations, 
+        station_no=clean_param(station_no), 
+        label=clean_param(label), 
+        factory_no=clean_param(factory_no), 
+        order_no=clean_param(order_no), 
+        date_from=df, 
+        date_to=dt
     )
+    
+    import os
     return FileResponse(
         path=fname,
-        filename=fname.split('/')[-1],
+        filename=os.path.basename(fname),
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )

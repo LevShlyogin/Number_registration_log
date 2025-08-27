@@ -11,23 +11,34 @@ from app.services.equipment import EquipmentService
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
 
+def clean_param(p: str | None) -> str | None:
+    if p is None:
+        return None
+    stripped = p.strip()
+    return stripped if stripped else None
 
 @router.get("/search")
 async def search_equipment(
     request: Request,
-    station_object: str | None = Query(None),
-    station_no: str | None = Query(None),
-    label: str | None = Query(None),
-    factory_no: str | None = Query(None),
-    order_no: str | None = Query(None),
-    q: str | None = Query(None),
+    # ### ИЗМЕНЕНО: Добавляем alias для всех параметров ###
+    station_object: str | None = Query(None, alias="station_object"),
+    station_no: str | None = Query(None, alias="station_no"),
+    label: str | None = Query(None, alias="label"),
+    factory_no: str | None = Query(None, alias="factory_no"),
+    order_no: str | None = Query(None, alias="order_no"),
+    q: str | None = Query(None, alias="q"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
     svc = EquipmentService(session)
+    # ### ИЗМЕНЕНО: Используем очищенные параметры ###
     results = await svc.search(
-        station_object=station_object, station_no=station_no, label=label, 
-        factory_no=factory_no, order_no=order_no, q=q
+        station_object=clean_param(station_object), 
+        station_no=clean_param(station_no), 
+        label=clean_param(label), 
+        factory_no=clean_param(factory_no), 
+        order_no=clean_param(order_no), 
+        q=clean_param(q)
     )
     
     if request.headers.get("Hx-Request") == "true":
@@ -82,22 +93,21 @@ async def create_equipment(
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
+    # ### ИЗМЕНЕНО: Очищаем данные и здесь ###
     payload = EquipmentCreate(
-        eq_type=eq_type,
-        factory_no=factory_no,
-        order_no=order_no,
-        label=label,
-        station_no=station_no,
-        station_object=station_object,
-        notes=notes,
+        eq_type=clean_param(eq_type),
+        factory_no=clean_param(factory_no),
+        order_no=clean_param(order_no),
+        label=clean_param(label),
+        station_no=clean_param(station_no),
+        station_object=clean_param(station_object),
+        notes=notes.strip() if notes else None,
     )
     
     try:
         svc = EquipmentService(session)
         eq = await svc.create(payload.model_dump())
 
-        # Если запрос пришел из HTMX (форма в UI), вернем HTML-фрагмент,
-        # иначе — JSON для API-клиентов (Postman/Bruno)
         if request.headers.get("Hx-Request") == "true":
             html = (
                 f'<div class="alert alert-success">Создано оборудование: ID={eq.id}, '
@@ -109,14 +119,12 @@ async def create_equipment(
             return JSONResponse(EquipmentOut.model_validate(eq).model_dump())
             
     except HTTPException as e:
-        # Обрабатываем ошибки валидации
         if request.headers.get("Hx-Request") == "true":
             html = f'<div class="alert alert-danger">Ошибка: {e.detail}</div>'
             return HTMLResponse(html, status_code=e.status_code)
         else:
             raise e
     except Exception as e:
-        # Обрабатываем неожиданные ошибки
         if request.headers.get("Hx-Request") == "true":
             html = f'<div class="alert alert-danger">Ошибка создания: {str(e)}</div>'
             return HTMLResponse(html, status_code=500)
