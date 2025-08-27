@@ -483,12 +483,28 @@ async def admin_documents(
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
     
-    if station_no: station_no = station_no.strip()
-    if label: label = label.strip()
-    if factory_no: factory_no = factory_no.strip()
-    if order_no: order_no = order_no.strip()
-    if username: username = username.strip()
-    if eq_type: eq_type = eq_type.strip()
+    # --- УЛУЧШЕННАЯ ЛОГИКА ОЧИСТКИ И ОТЛАДКА ---
+    def clean_param(p):
+        if p is None:
+            return None
+        stripped = p.strip()
+        return stripped if stripped else None
+
+    cleaned_station_no = clean_param(station_no)
+    cleaned_label = clean_param(label)
+    cleaned_factory_no = clean_param(factory_no)
+    cleaned_order_no = clean_param(order_no)
+    cleaned_username = clean_param(username)
+    cleaned_eq_type = clean_param(eq_type)
+    
+    print("--------------------------------------------------")
+    print("DEBUG [ROUTER]: Получены очищенные фильтры:")
+    print(f"  - factory_no: {cleaned_factory_no!r}")
+    print(f"  - station_no: {cleaned_station_no!r}")
+    print(f"  - label: {cleaned_label!r}")
+    print(f"  - order_no: {cleaned_order_no!r}")
+    print("--------------------------------------------------")
+    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     svc = ReportsService(session)
     

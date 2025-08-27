@@ -108,6 +108,15 @@ class ReportsRepository:
         if eq_type: where.append(Equipment.eq_type == eq_type)
 
         if where: stmt = stmt.where(and_(*where))
+
+        # --- ОТЛАДКА ФИНАЛЬНЫХ УСЛОВИЙ ---
+        print("--------------------------------------------------")
+        print("DEBUG [REPOSITORY]: Финальные SQL-условия (WHERE):")
+        for condition in where:
+            print(f"  - {str(condition)}")
+        print("--------------------------------------------------")
+        # --- КОНЕЦ ОТЛАДКИ ---
+
         stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
         res = await self.session.execute(stmt)
         return res.fetchall()
