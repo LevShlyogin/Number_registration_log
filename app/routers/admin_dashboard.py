@@ -429,12 +429,14 @@ async def admin_documents(
     
     print("--------------------------------------------------")
     print("DEBUG [ROUTER]: Получены очищенные фильтры:")
+    print(f"  - station_objects: {station_object!r}") # Добавили эту строку
     print(f"  - factory_no: {cleaned_factory_no!r}")
     print(f"  - station_no: {cleaned_station_no!r}")
     print(f"  - label: {cleaned_label!r}")
     print(f"  - order_no: {cleaned_order_no!r}")
+    print(f"  - username: {cleaned_username!r}")
+    print(f"  - eq_type: {cleaned_eq_type!r}")
     print("--------------------------------------------------")
-    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     svc = ReportsService(session)
     
@@ -454,15 +456,15 @@ async def admin_documents(
     
     # Получаем данные с расширенными фильтрами
     rows = await svc.get_rows_extended_admin(
-        station_objects=station_object,
-        station_no=station_no,
-        label=label,
-        factory_no=factory_no,
-        order_no=order_no,
-        username=username,
+        station_objects=station_object, # Для списка станций очистка не нужна
+        station_no=cleaned_station_no,
+        label=cleaned_label,
+        factory_no=cleaned_factory_no,
+        order_no=cleaned_order_no,
+        username=cleaned_username,
         date_from=df,
         date_to=dt,
-        eq_type=eq_type
+        eq_type=cleaned_eq_type
     )
     
     if request.headers.get("Hx-Request") == "true":
