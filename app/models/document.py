@@ -1,13 +1,16 @@
 from __future__ import annotations
-# ### ДОБАВЛЕНО ###
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, DateTime, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import CITEXT
 
 from app.models.base import Base
-# ### ДОБАВЛЕНО ###
-# Импортируем Equipment для type hinting в relationship
-from app.models.equipment import Equipment
+
+# Импортируем Equipment только для типизации, не в runtime
+if TYPE_CHECKING:
+    from app.models.equipment import Equipment
 
 
 class Document(Base):
@@ -24,5 +27,5 @@ class Document(Base):
     equipment_id: Mapped[int] = mapped_column(ForeignKey("equipment.id", ondelete="RESTRICT"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
 
-    #Связь с оборудованием
-    equipment: Mapped["Equipment"] = relationship(back_populates="documents", lazy="joined")
+    # Используем строковую ссылку на модель вместо прямого импорта
+    equipment: Mapped["Equipment"] = relationship("Equipment", back_populates="documents", lazy="joined")
