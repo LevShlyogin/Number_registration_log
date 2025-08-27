@@ -11,7 +11,6 @@ from app.repositories.equipment import EquipmentRepository
 from app.repositories.users import UsersRepository
 from app.models.session import SessionStatus
 from app.utils.numbering import format_doc_no, is_golden
-# ### ИСПРАВЛЕНО: Правильный импорт ###
 from app.schemas.admin import AdminDocumentUpdate
 
 
@@ -83,6 +82,9 @@ class DocumentsService:
         Обновляет данные документа и связанного с ним оборудования,
         сохраняя аудит всех изменений.
         """
+        # --- ОТЛАДКА ---
+        print(f"!!!!!!!!!!!!!! ПОПЫТКА РЕДАКТИРОВАНИЯ ДОКУМЕНТА С ID: {document_id} !!!!!!!!!!!!!!")
+        # --- КОНЕЦ ОТЛАДКИ ---
         # Получаем документ
         doc = await self.docs_repo.get(document_id)
         if not doc:

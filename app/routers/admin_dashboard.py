@@ -1,4 +1,3 @@
-# C:\Cursor_projects\Number_registration_log\app\routers\admin_dashboard.py
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Form, Request, Query
@@ -279,13 +278,25 @@ async def admin_dashboard(
                 document.getElementById('filter-date-to').value = today.toISOString().split('T')[0];
             });
             
-            // ИЗМЕНЕНО: Функция для редактирования документов теперь принимает весь объект
-            function editDocument(doc) {
-                // Больше не нужен дополнительный fetch, все данные уже есть в объекте doc
-                showEditModal(doc);
+            // Функции для редактирования документов
+            function editDocument(documentId) {
+                // Загружаем данные документа
+                fetch(`/documents/${documentId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Ошибка загрузки документа');
+                    }
+                    return response.json();
+                })
+                .then(doc => {
+                    // Создаем модальное окно для редактирования
+                    showEditModal(doc);
+                })
+                .catch(error => {
+                    alert('Ошибка: ' + error.message);
+                });
             }
             
-            // ИЗМЕНЕНО: Модальное окно теперь содержит все редактируемые поля
             function showEditModal(doc) {
                 // Удаляем существующий модал если есть
                 const existingModal = document.getElementById('editModal');
@@ -293,69 +304,25 @@ async def admin_dashboard(
                     existingModal.remove();
                 }
                 
-                // Функция для безопасного экранирования HTML
-                function escapeHtml(text) {
-                    if (text === null || text === undefined) return '';
-                    const div = document.createElement('div');
-                    div.textContent = text;
-                    return div.innerHTML;
-                }
-                
                 // Создаем модальное окно
                 const modalHtml = `
                     <div class="modal fade" id="editModal" tabindex="-1">
-                        <div class="modal-dialog modal-lg">
+                        <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
-                                    <h5 class="modal-title">Редактирование документа ${escapeHtml(doc.doc_no)}</h5>
+                                    <h5 class="modal-title">Редактирование документа ${doc.formatted_no}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body">
                                     <form id="editForm">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">Наименование документа</label>
-                                                <input type="text" class="form-control" id="edit-doc-name" 
-                                                       value="${escapeHtml(doc.doc_name)}" required>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">Тип оборудования</label>
-                                                <input type="text" class="form-control" id="edit-eq-type" 
-                                                       value="${escapeHtml(doc.eq_type)}">
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">Станция/Объект</label>
-                                                <input type="text" class="form-control" id="edit-station-object" 
-                                                       value="${escapeHtml(doc.station_object)}">
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">№ станционный</label>
-                                                <input type="text" class="form-control" id="edit-station-no" 
-                                                       value="${escapeHtml(doc.station_no)}">
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label">№ заводской</label>
-                                                <input type="text" class="form-control" id="edit-factory-no" 
-                                                       value="${escapeHtml(doc.factory_no)}">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label">№ заказа</label>
-                                                <input type="text" class="form-control" id="edit-order-no" 
-                                                       value="${escapeHtml(doc.order_no)}">
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label">Маркировка</label>
-                                                <input type="text" class="form-control" id="edit-label" 
-                                                       value="${escapeHtml(doc.label)}">
-                                            </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Наименование документа</label>
+                                            <input type="text" class="form-control" id="edit-doc-name" 
+                                                   value="${doc.doc_name || ''}" required>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Примечание</label>
-                                            <textarea class="form-control" id="edit-note" rows="3">${escapeHtml(doc.note)}</textarea>
+                                            <textarea class="form-control" id="edit-note" rows="3">${doc.note || ''}</textarea>
                                         </div>
                                     </form>
                                 </div>
@@ -381,17 +348,10 @@ async def admin_dashboard(
                 });
             }
             
-            // ИЗМЕНЕНО: Функция сохранения теперь собирает все данные из формы
             function saveDocument(documentId) {
                 const docName = document.getElementById('edit-doc-name').value;
                 const note = document.getElementById('edit-note').value;
-                const eqType = document.getElementById('edit-eq-type').value;
-                const stationObject = document.getElementById('edit-station-object').value;
-                const stationNo = document.getElementById('edit-station-no').value;
-                const factoryNo = document.getElementById('edit-factory-no').value;
-                const orderNo = document.getElementById('edit-order-no').value;
-                const label = document.getElementById('edit-label').value;
-
+                
                 if (!docName.trim()) {
                     alert('Наименование документа обязательно для заполнения');
                     return;
@@ -400,22 +360,15 @@ async def admin_dashboard(
                 const formData = new FormData();
                 formData.append('doc_name', docName);
                 formData.append('note', note);
-                formData.append('eq_type', eqType);
-                formData.append('station_object', stationObject);
-                formData.append('station_no', stationNo);
-                formData.append('factory_no', factoryNo);
-                formData.append('order_no', orderNo);
-                formData.append('label', label);
                 
+                // Отправляем PATCH запрос
                 fetch(`/documents/${documentId}`, {
                     method: 'PATCH',
                     body: formData
                 })
                 .then(response => {
                     if (!response.ok) {
-                        return response.json().then(err => { 
-                            throw new Error(err.detail || 'Ошибка при сохранении'); 
-                        });
+                        throw new Error('Ошибка при сохранении');
                     }
                     return response.json();
                 })
@@ -516,9 +469,6 @@ async def admin_documents(
         if not rows:
             return HTMLResponse('<div class="alert alert-warning">Документы не найдены</div>')
         
-        #Конвертируем данные в JSON для передачи в JS
-        import json
-        
         html = """
         <div class="table-responsive">
             <table class="table table-striped table-hover">
@@ -542,9 +492,6 @@ async def admin_documents(
         """
         
         for row in rows:
-            # ИЗМЕНЕНО: Передаем весь объект row в функцию editDocument
-            # Используем json.dumps для корректной экранировки кавычек
-            row_json = json.dumps(row, ensure_ascii=False).replace("'", "\\'")
             html += f"""
             <tr>
                 <td>{row['doc_no']}</td>
@@ -559,7 +506,7 @@ async def admin_documents(
                 <td>{row['station_object'] or '-'}</td>
                 <td>{row['username']}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick='editDocument({row_json})'>
+                    <button class="btn btn-sm btn-primary" onclick="editDocument({row["id"]})">
                         <i class="bi bi-pencil"></i> Изменить
                     </button>
                 </td>
