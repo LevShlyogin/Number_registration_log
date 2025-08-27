@@ -52,7 +52,6 @@ async def wizard_ui(
             }
             .step.active { border-color: #007bff; }
             .step.completed { border-color: #28a745; }
-            /* ### НОВЫЕ СТИЛИ для золотых номеров ### */
             .golden-number-list {
                 max-height: 200px;
                 overflow-y: auto;
@@ -223,7 +222,6 @@ async def wizard_ui(
                 
                 <div id="reserve-result"></div>
 
-                <!-- ### НОВЫЙ БЛОК: Функционал для админа ### -->
                 <div id="admin-golden-numbers-section" style="display: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
                     <h4>Резерв золотых номеров (для админа)</h4>
                     <p class="text-muted">Этот блок виден только администраторам.</p>
@@ -235,7 +233,6 @@ async def wizard_ui(
                     <div id="golden-numbers-result" class="mb-3"></div>
                     <div id="golden-reserve-status"></div>
                 </div>
-                <!-- ### КОНЕЦ НОВОГО БЛОКА ### -->
                 
                 <div class="mt-4">
                     <button class="btn btn-secondary" onclick="prevStep()">
@@ -376,70 +373,159 @@ async def wizard_ui(
             let reservedNumbers = [];
             
             function showStep(step) {
+                // Скрываем все шаги
                 document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
                 document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+                
+                // Показываем нужный шаг
                 document.getElementById(`step-${step}`).classList.add('active');
                 document.getElementById(`step-${step}-indicator`).classList.add('active');
+                
+                // Обновляем индикаторы
                 for (let i = 1; i < step; i++) {
                     document.getElementById(`step-${i}-indicator`).classList.add('completed');
                 }
+                
                 currentStep = step;
             }
             
-            function nextStep() { if (currentStep < 4) { showStep(currentStep + 1); } }
-            function prevStep() { if (currentStep > 1) { showStep(currentStep - 1); } }
+            function nextStep() {
+                if (currentStep < 4) {
+                    showStep(currentStep + 1);
+                }
+            }
+            
+            function prevStep() {
+                if (currentStep > 1) {
+                    showStep(currentStep - 1);
+                }
+            }
             
             function searchEquipment() {
                 const params = new URLSearchParams();
-                const fields = ['search-station-object', 'search-station-no', 'search-label', 'search-factory-no', 'search-order-no', 'search-q'];
-                fields.forEach(id => {
-                    const value = document.getElementById(id).value.trim();
-                    if (value) {
-                        const paramName = id.replace('search-', '');
-                        params.append(paramName, value);
+                const stationObject = document.getElementById('search-station-object').value;
+                const stationNo = document.getElementById('search-station-no').value;
+                const label = document.getElementById('search-label').value;
+                const factoryNo = document.getElementById('search-factory-no').value;
+                const orderNo = document.getElementById('search-order-no').value;
+                const q = document.getElementById('search-q').value;
+                
+                if (stationObject) params.append('station_object', stationObject);
+                if (stationNo) params.append('station_no', stationNo);
+                if (label) params.append('label', label);
+                if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
+                if (q) params.append('q', q);
+                
+                console.log('Поиск оборудования с параметрами:', params.toString());
+                
+                fetch(`/equipment/search?${params.toString()}`, {
+                    headers: {
+                        'Hx-Request': 'true'  // Добавляем HTMX заголовок
                     }
+                })
+                .then(response => {
+                    console.log('Ответ поиска получен:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    console.log('HTML ответ получен, обновляем результаты');
+                    document.getElementById('search-results').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Ошибка поиска:', error);
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-danger">Ошибка поиска: ${error.message}</div>`;
                 });
-                fetch(`/equipment/search?${params.toString()}`, { headers: { 'Hx-Request': 'true' } })
-                    .then(response => response.text())
-                    .then(html => { document.getElementById('search-results').innerHTML = html; })
-                    .catch(error => { document.getElementById('search-results').innerHTML = `<div class="alert alert-danger">Ошибка поиска</div>`; });
             }
             
             function selectEquipment(id) {
+                console.log('Выбираем оборудование:', id);
                 selectedEquipmentId = id;
-                document.querySelectorAll('.equipment-item').forEach(item => item.classList.remove('selected'));
+                
+                // Подсвечиваем выбранный элемент
+                document.querySelectorAll('.equipment-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
                 const selectedItem = document.querySelector(`[data-equipment-id="${id}"]`);
                 if (selectedItem) {
                     selectedItem.classList.add('selected');
+                    
+                    // Показываем информацию о выбранном оборудовании
                     const header = selectedItem.querySelector('.equipment-header').textContent;
-                    document.getElementById('search-results').innerHTML = `<div class="alert alert-success">Выбрано: ${header}</div>`;
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-success">Выбрано: ${header}</div>`;
                 } else {
-                    document.getElementById('search-results').innerHTML = `<div class="alert alert-success">Выбрано оборудование с ID: ${id}</div>`;
+                    // Если элемент не найден (например, после создания), показываем сообщение
+                    document.getElementById('search-results').innerHTML = 
+                        `<div class="alert alert-success">Выбрано оборудование с ID: ${id}</div>`;
                 }
+                
+                // Активируем кнопку "Далее"
                 document.getElementById('next-btn-1').disabled = false;
+                console.log('Оборудование выбрано, кнопка "Далее" активирована');
             }
             
-            function showCreateForm() { document.getElementById('create-form').style.display = 'block'; }
-            function hideCreateForm() { document.getElementById('create-form').style.display = 'none'; }
+            function showCreateForm() {
+                document.getElementById('create-form').style.display = 'block';
+            }
+            
+            function hideCreateForm() {
+                document.getElementById('create-form').style.display = 'none';
+            }
             
             function reserveNumbers() {
-                if (!selectedEquipmentId) { alert('Сначала выберите оборудование'); return; }
+                if (!selectedEquipmentId) {
+                    alert('Сначала выберите оборудование');
+                    return;
+                }
+                
                 const count = document.getElementById('requested-count').value;
                 const formData = new FormData();
                 formData.append('equipment_id', selectedEquipmentId);
                 formData.append('requested_count', count);
-                fetch('/sessions', { method: 'POST', body: formData })
-                    .then(response => response.json())
-                    .then(data => {
-                        const html = `<div class="alert alert-success"><strong>Сессия создана!</strong><br/>ID: ${data.session_id}<br/>Зарезервировано номеров: ${data.reserved_numbers.join(', ')}</div>`;
-                        document.getElementById('reserve-result').innerHTML = html;
-                        currentSessionId = data.session_id;
-                        document.getElementById('next-btn-2').disabled = false;
-                    })
-                    .catch(error => { document.getElementById('reserve-result').innerHTML = `<div class="alert alert-danger">Ошибка при резерве номеров</div>`; });
+                
+                console.log('Отправляем запрос на резерв:', {equipment_id: selectedEquipmentId, count: count});
+                
+                fetch('/sessions', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log('Ответ получен:', response.status, response.statusText);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Данные ответа:', data);
+                    
+                    // Показываем результат резерва
+                    const html = `
+                        <div class="alert alert-success">
+                            <strong>Сессия создана!</strong><br/>
+                            ID: ${data.session_id}<br/>
+                            Зарезервировано номеров: ${data.reserved_numbers.join(', ')}
+                        </div>
+                    `;
+                    document.getElementById('reserve-result').innerHTML = html;
+                    
+                    // Сохраняем session_id и активируем кнопку "Далее"
+                    currentSessionId = data.session_id;
+                    document.getElementById('next-btn-2').disabled = false;
+                    console.log('Кнопка "Далее" активирована, session_id:', currentSessionId);
+                })
+                .catch(error => {
+                    console.error('Ошибка резерва:', error);
+                    document.getElementById('reserve-result').innerHTML = 
+                        `<div class="alert alert-danger">Ошибка при резерве номеров: ${error.message}</div>`;
+                });
             }
-
-            // ### НОВАЯ ФУНКЦИЯ: Показать золотые номера ###
+            
             function suggestGoldenNumbers() {
                 const resultsDiv = document.getElementById('golden-numbers-result');
                 resultsDiv.innerHTML = '<div class="alert alert-info">Поиск золотых номеров...</div>';
@@ -462,7 +548,6 @@ async def wizard_ui(
                     .catch(error => { resultsDiv.innerHTML = '<div class="alert alert-danger">Ошибка при поиске.</div>'; });
             }
 
-            // ### НОВАЯ ФУНКЦИЯ: Зарезервировать выбранные золотые номера ###
             function reserveGoldenNumbers() {
                 if (!selectedEquipmentId) { alert('Сначала выберите оборудование на Шаге 1.'); return; }
                 const selectedCheckboxes = document.querySelectorAll('#golden-numbers-result input[type="checkbox"]:checked');
@@ -485,61 +570,107 @@ async def wizard_ui(
                         document.getElementById('next-btn-2').disabled = false;
                     })
                     .catch(error => { document.getElementById('golden-reserve-status').innerHTML = `<div class="alert alert-danger">Ошибка: ${error.message}</div>`; });
-            }
+            }                        
 
             function assignNextNumber() {
-                if (!currentSessionId) { alert('Сначала зарезервируйте номера'); return; }
+                if (!currentSessionId) {
+                    alert('Сначала зарезервируйте номера');
+                    return;
+                }
+                
                 const docName = document.getElementById('doc-name').value;
                 const docNote = document.getElementById('doc-note').value;
-                if (!docName) { alert('Заполните наименование'); return; }
+                
+                if (!docName) {
+                    alert('Заполните наименование');
+                    return;
+                }
+                
                 const formData = new FormData();
                 formData.append('session_id', currentSessionId);
                 formData.append('doc_name', docName);
                 if (docNote) formData.append('note', docNote);
-                fetch('/documents/assign-one', { method: 'POST', headers: { 'Hx-Request': 'true' }, body: formData })
-                    .then(response => response.text())
-                    .then(html => { document.getElementById('documents-table').insertAdjacentHTML('beforeend', html); });
+                
+                fetch('/documents/assign-one', {
+                    method: 'POST',
+                    headers: { 'Hx-Request': 'true' },
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const tbody = document.getElementById('documents-table');
+                    tbody.insertAdjacentHTML('beforeend', html);
+                });
             }
             
             function completeSession() {
-                if (!currentSessionId) { showStep(4); showReport(); return; }
+                if (!currentSessionId) {
+                    alert('Нет активной сессии');
+                    return;
+                }
+                
                 fetch(`/sessions/${currentSessionId}/complete`, { method: 'POST' })
-                    .then(() => { showStep(4); showReport(); });
+                    .then(response => response.json())
+                    .then(data => {
+                        // Всегда идем к отчету, независимо от оставшихся номеров
+                        showStep(4);
+                        showReport();
+                    });
             }
             
             function showReport() {
+                // Показываем отчет с фильтрами
                 const params = new URLSearchParams();
-                const fields = ['report-station-object', 'report-station-no', 'report-label', 'report-factory-no', 'report-order-no'];
-                fields.forEach(id => {
-                    const value = document.getElementById(id).value;
-                    if (id === 'report-station-object' && value) {
-                        const stations = value.split(',').map(s => s.trim()).filter(s => s);
-                        stations.forEach(station => params.append('station_object', station));
-                    } else if (value) {
-                        const paramName = id.replace('report-', '');
-                        params.append(paramName, value.trim());
-                    }
-                });
-                document.getElementById('report-content').innerHTML = '<div class="alert alert-info">Отчет загружается...</div>';
-                fetch(`/reports?${params.toString()}`, { headers: { 'Hx-Request': 'true' } })
+                const stationObject = document.getElementById('report-station-object').value;
+                const stationNo = document.getElementById('report-station-no').value;
+                const label = document.getElementById('report-label').value;
+                const factoryNo = document.getElementById('report-factory-no').value;
+                const orderNo = document.getElementById('report-order-no').value;
+                
+                if (stationObject) {
+                    // Разбиваем на отдельные значения для множественного выбора
+                    const stations = stationObject.split(',').map(s => s.trim()).filter(s => s);
+                    stations.forEach(station => params.append('station_object', station));
+                }
+                if (stationNo) params.append('station_no', stationNo);
+                if (label) params.append('label', label);
+                if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
+                
+                document.getElementById('report-content').innerHTML = 
+                    '<div class="alert alert-info">Отчет загружается...</div>';
+                
+                fetch(`/reports?${params.toString()}`, {
+                    headers: { 'Hx-Request': 'true' }
+                })
                     .then(response => response.text())
-                    .then(html => { document.getElementById('report-content').innerHTML = html; })
-                    .catch(error => { document.getElementById('report-content').innerHTML = '<div class="alert alert-danger">Ошибка загрузки отчета</div>'; });
+                    .then(html => {
+                        document.getElementById('report-content').innerHTML = html;
+                    })
+                    .catch(error => {
+                        document.getElementById('report-content').innerHTML = 
+                            '<div class="alert alert-danger">Ошибка загрузки отчета</div>';
+                    });
             }
             
             function exportExcel() {
+                // Экспорт в Excel с фильтрами
                 const params = new URLSearchParams();
-                const fields = ['report-station-object', 'report-station-no', 'report-label', 'report-factory-no', 'report-order-no'];
-                fields.forEach(id => {
-                    const value = document.getElementById(id).value;
-                    if (id === 'report-station-object' && value) {
-                        const stations = value.split(',').map(s => s.trim()).filter(s => s);
-                        stations.forEach(station => params.append('station_object', station));
-                    } else if (value) {
-                        const paramName = id.replace('report-', '');
-                        params.append(paramName, value.trim());
-                    }
-                });
+                const stationObject = document.getElementById('report-station-object').value;
+                const stationNo = document.getElementById('report-station-no').value;
+                const label = document.getElementById('report-label').value;
+                const factoryNo = document.getElementById('report-factory-no').value;
+                const orderNo = document.getElementById('report-order-no').value;
+                
+                if (stationObject) {
+                    const stations = stationObject.split(',').map(s => s.trim()).filter(s => s);
+                    stations.forEach(station => params.append('station_object', station));
+                }
+                if (stationNo) params.append('station_no', stationNo);
+                if (label) params.append('label', label);
+                if (factoryNo) params.append('factory_no', factoryNo);
+                if (orderNo) params.append('order_no', orderNo);
+                
                 window.open(`/reports/excel?${params.toString()}`, '_blank');
             }
             
@@ -556,6 +687,7 @@ async def wizard_ui(
             
             function suggestDocNames(query) {
                 if (query.length < 2) return;
+                
                 fetch(`/suggest/doc-names?q=${encodeURIComponent(query)}`)
                     .then(response => response.json())
                     .then(suggestions => {
@@ -569,11 +701,29 @@ async def wizard_ui(
                     });
             }
             
-            // ### ИЗМЕНЕНО: Проверка прав админа ###
+            function suggestNotes(query) {
+                return; // suggestions disabled for note
+            }
+
+            // Переход в админский режим
+            function enterAdminMode() {
+                window.location.href = '/admin-dashboard/dashboard';
+            }
+            
+            // Показываем админскую кнопку для админов
+            function showAdminButton() {
+                const adminSection = document.getElementById('admin-mode-section');
+                if (adminSection) {
+                    adminSection.style.display = 'block';
+                }
+            }
+            
+            // Проверяем права админа при загрузке страницы
             document.addEventListener('DOMContentLoaded', function() {
                 fetch('/admin/check-access')
                     .then(response => {
                         if (response.ok) {
+                            // ### ИЗМЕНЕННЫЙ КОД ###
                             // Показываем кнопку перехода в админ-панель
                             document.getElementById('admin-panel-button').style.display = 'block';
                             // Показываем секцию для резерва золотых номеров на шаге 2
