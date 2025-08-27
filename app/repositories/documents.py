@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.document import Document
 
@@ -20,6 +21,11 @@ class DocumentsRepository:
         res = await self.session.execute(select(Document).where(Document.numeric == numeric))
         return res.scalars().first()
 
+    #добавлена жадная загрузка equipment
     async def get(self, id_: int) -> Document | None:
-        res = await self.session.execute(select(Document).where(Document.id == id_))
+        """Получает документ вместе со связанным оборудованием"""
+        stmt = select(Document).where(Document.id == id_).options(
+            selectinload(Document.equipment)  # Жадная загрузка связанного оборудования
+        )
+        res = await self.session.execute(stmt)
         return res.scalars().first()

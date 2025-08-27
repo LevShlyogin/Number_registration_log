@@ -1,10 +1,13 @@
 from __future__ import annotations
-
-from sqlalchemy.orm import Mapped, mapped_column
+# ### ДОБАВЛЕНО ###
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, DateTime, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import CITEXT
 
 from app.models.base import Base
+# ### ДОБАВЛЕНО ###
+# Импортируем Equipment для type hinting в relationship
+from app.models.equipment import Equipment
 
 
 class Document(Base):
@@ -20,3 +23,6 @@ class Document(Base):
     note: Mapped[str] = mapped_column(CITEXT, nullable=False)
     equipment_id: Mapped[int] = mapped_column(ForeignKey("equipment.id", ondelete="RESTRICT"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+
+    #Связь с оборудованием
+    equipment: Mapped["Equipment"] = relationship(back_populates="documents", lazy="joined")

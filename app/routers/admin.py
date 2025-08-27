@@ -14,16 +14,6 @@ from app.schemas.admin import GoldenSuggestOut
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
-@router.get("/check-access")
-async def check_access(
-    user: CurrentUser = Depends(get_current_user),
-):
-    """Проверка прав администратора"""
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только админ.")
-    return JSONResponse({"is_admin": True})
-
-
 @router.get("/golden-suggest")
 async def golden_suggest(
     request: Request,
