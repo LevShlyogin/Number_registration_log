@@ -146,17 +146,20 @@ async def admin_dashboard(
                 filters.forEach(filterId => {
                     const value = document.getElementById(filterId).value;
                     if (value) {
-                        const paramName = filterId.replace('filter-', '');
+                        // ### ИЗМЕНЕНИЕ ЗДЕСЬ ###
+                        // Мы берем имя параметра прямо из ID, не удаляя дефисы
+                        const paramName = filterId.replace('filter-', ''); 
+                        
                         if (paramName === 'station-object') {
-                            // Поддержка множественного выбора для станций
                             const stations = value.split(',').map(s => s.trim()).filter(s => s);
-                            stations.forEach(station => params.append('station_object', station));
+                            // Мы явно используем 'station-object' с дефисом
+                            stations.forEach(station => params.append('station-object', station));
                         } else {
                             params.append(paramName, value);
                         }
                     }
                 });
-                
+
                 document.getElementById('search-results').innerHTML = 
                     '<div class="alert alert-info">Поиск...</div>';
                 
