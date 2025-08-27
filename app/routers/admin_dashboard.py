@@ -131,38 +131,6 @@ async def admin_dashboard(
                 </div>
             </div>
             
-            <!-- Управление золотыми номерами -->
-            <div class="admin-section">
-                <h3>Управление золотыми номерами</h3>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label">Оборудование</label>
-                            <select class="form-control" id="golden-equipment">
-                                <option value="">Выберите оборудование</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label class="form-label">Количество номеров</label>
-                            <input type="number" class="form-control" id="golden-count" 
-                                   min="1" max="50" value="10">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <button class="btn btn-warning" onclick="suggestGoldenNumbers()" style="margin-top: 32px;">
-                                <i class="bi bi-star"></i> Показать золотые
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="golden-results"></div>
-            </div>
-        </div>
-        
         <script>
             // Поиск документов с расширенными фильтрами
             function searchDocuments() {
@@ -230,46 +198,8 @@ async def admin_dashboard(
                 window.open(`/admin-dashboard/documents/excel?${params.toString()}`, '_blank');
             }
             
-            // Предложение золотых номеров
-            function suggestGoldenNumbers() {
-                const equipmentId = document.getElementById('golden-equipment').value;
-                const count = document.getElementById('golden-count').value;
-                
-                if (!equipmentId) {
-                    alert('Выберите оборудование');
-                    return;
-                }
-                
-                document.getElementById('golden-results').innerHTML = 
-                    '<div class="alert alert-info">Поиск золотых номеров...</div>';
-                
-                fetch(`/admin/golden-suggest?limit=${count}`, {
-                    headers: { 'Hx-Request': 'true' }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('golden-results').innerHTML = html;
-                })
-                .catch(error => {
-                    document.getElementById('golden-results').innerHTML = 
-                        '<div class="alert alert-danger">Ошибка поиска золотых номеров</div>';
-                });
-            }
-            
             // Загрузка списка оборудования при загрузке страницы
             document.addEventListener('DOMContentLoaded', function() {
-                // Загружаем список оборудования для выбора золотых номеров
-                fetch('/admin-dashboard/equipment?limit=100')
-                .then(response => response.json())
-                .then(equipment => {
-                    const select = document.getElementById('golden-equipment');
-                    equipment.forEach(eq => {
-                        const option = document.createElement('option');
-                        option.value = eq.id;
-                        option.textContent = `${eq.eq_type} - ${eq.station_object || 'N/A'} (${eq.factory_no || 'N/A'})`;
-                        select.appendChild(option);
-                    });
-                });
                 
                 // Устанавливаем даты по умолчанию (последние 30 дней)
                 const today = new Date();
