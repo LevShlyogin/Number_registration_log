@@ -8,8 +8,10 @@ from app.core.auth import get_current_user, CurrentUser
 from app.core.config import settings
 from app.core.db import lifespan_session
 from app.repositories.sessions import SessionsRepository
+from app.repositories.doc_numbers import DocNumbersRepository
 from app.schemas.sessions import ReserveResult
 from app.services.reservation import ReservationService
+from app.models.doc_number import DocNumStatus
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -28,11 +30,20 @@ async def start_session(
     session_id, reserved = await svc.start_session(
         user_id=user.id, equipment_id=equipment_id, requested_count=requested_count, ttl_seconds=ttl
     )
+    
+    # Если запрос пришел из HTMX (форма в UI), вернем HTML-фрагмент,
+    # иначе — JSON для wizard и API-клиентов
     if request.headers.get("Hx-Request") == "true":
         pretty = ", ".join(str(n) for n in reserved) or "—"
         html = f'<div class="badge">Сессия: <b>{session_id}</b><br/>Зарезервировано: {pretty}</div>'
         return HTMLResponse(html)
-    return JSONResponse(ReserveResult(session_id=session_id, reserved_numbers=reserved).model_dump())
+    else:
+        # Для wizard возвращаем JSON
+        return JSONResponse({
+            "session_id": session_id,
+            "reserved_numbers": reserved,
+            "message": "Сессия создана успешно"
+        })
 
 
 @router.post("/{session_id}/cancel", response_model=dict)
@@ -44,6 +55,26 @@ async def cancel_session(
     svc = ReservationService(session)
     released = await svc.cancel_session(session_id)
     return {"released": released}
+
+
+@router.post("/{session_id}/complete", response_model=dict)
+async def complete_session(
+    session_id: str,
+    session: AsyncSession = Depends(lifespan_session),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Завершение сессии с освобождением неназначенных номеров"""
+    numbers_repo = DocNumbersRepository(session)
+    sessions_repo = SessionsRepository(session)
+
+    # Освобождаем все оставшиеся зарезервированные номера этой сессии
+    released_count = await numbers_repo.release_session(session_id)
+
+    # Устанавливаем статус сессии как завершенной
+    await sessions_repo.set_status(session_id, "completed")
+    await session.commit()
+
+    return {"success": True, "message": "Сессия завершена", "released_count": released_count}
 
 
 @router.get("/{session_id}")
@@ -68,3 +99,28 @@ async def get_session(
             "expires_at": sess.expires_at.isoformat(),
         }
     )
+
+
+@router.get("/{session_id}/reserved")
+async def get_reserved_numbers(
+    session_id: str,
+    session: AsyncSession = Depends(lifespan_session),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Получение списка зарезервированных номеров для сессии"""
+    numbers_repo = DocNumbersRepository(session)
+    reserved = await numbers_repo.get_reserved_for_session(session_id)
+    
+    if not reserved:
+        return {"reserved": [], "message": "Нет зарезервированных номеров"}
+    
+    # Форматируем номера для отображения
+    formatted_numbers = []
+    for num in reserved:
+        formatted_numbers.append({
+            "numeric": num.numeric,
+            "is_golden": num.is_golden,
+            "formatted": f"УТЗ-{num.numeric:06d}"
+        })
+    
+    return {"reserved": formatted_numbers, "count": len(formatted_numbers)}

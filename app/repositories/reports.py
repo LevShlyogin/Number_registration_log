@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
@@ -44,5 +44,79 @@ class ReportsRepository:
         if where:
             stmt = stmt.where(and_(*where))
         stmt = stmt.order_by(Document.reg_date.asc(), Document.numeric.asc())
+        res = await self.session.execute(stmt)
+        return res.fetchall()
+
+    async def fetch_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to):
+        """Расширенный поиск с дополнительными фильтрами"""
+        print("!!!!!!!!!!!!!! ЗАПУЩЕНА НОВАЯ ВЕРСИЯ ПОИСКА (С ТОЧНЫМ СОВПАДЕНИЕМ) !!!!!!!!!!!!!!")
+        stmt = (
+            select(
+                Document.numeric, Document.reg_date, Document.doc_name, Document.note,
+                Equipment.eq_type, Equipment.factory_no, Equipment.order_no,
+                Equipment.label, Equipment.station_no, Equipment.station_object,
+                User.username,
+            )
+            .join(Equipment, Equipment.id == Document.equipment_id)
+            .join(User, User.id == Document.user_id)
+        )
+        where = []
+        if station_objects:
+            station_object_conditions = [Equipment.station_object.ilike(f"%{so}%") for so in station_objects]
+            where.append(or_(*station_object_conditions))
+        if label: where.append(Equipment.label.ilike(f"%{label}%"))
+
+        if station_no: where.append(Equipment.station_no == station_no)
+        if factory_no: where.append(Equipment.factory_no == factory_no)
+        if order_no: where.append(Equipment.order_no == order_no)
+
+        if date_from: where.append(Document.reg_date >= date_from)
+        if date_to: where.append(Document.reg_date <= date_to)
+        if where: stmt = stmt.where(and_(*where))
+        stmt = stmt.order_by(Document.reg_date.asc(), Document.numeric.asc())
+        res = await self.session.execute(stmt)
+        return res.fetchall()
+    
+    async def fetch_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None):
+        """Расширенный поиск для админов с дополнительными фильтрами"""
+        print("!!!!!!!!!!!!!! ЗАПУЩЕНА НОВАЯ ВЕРСИЯ ПОИСКА (С ТОЧНЫМ СОВПАДЕНИЕМ) !!!!!!!!!!!!!!")
+        stmt = (
+            select(
+                Document.id, Document.numeric, Document.reg_date, Document.doc_name, Document.note,
+                Equipment.eq_type, Equipment.factory_no, Equipment.order_no,
+                Equipment.label, Equipment.station_no, Equipment.station_object,
+                User.username,
+            )
+            .join(Equipment, Equipment.id == Document.equipment_id)
+            .join(User, User.id == Document.user_id)
+        )
+
+        where = []
+
+        if station_objects:
+            station_object_conditions = [Equipment.station_object.ilike(f"%{so}%") for so in station_objects]
+            where.append(or_(*station_object_conditions))
+        if label: where.append(Equipment.label.ilike(f"%{label}%"))
+        if username: where.append(User.username.ilike(f"%{username}%"))
+        
+        if station_no: where.append(Equipment.station_no == station_no)
+        if factory_no: where.append(Equipment.factory_no == factory_no)
+        if order_no: where.append(Equipment.order_no == order_no)
+        
+        if date_from: where.append(Document.reg_date >= date_from)
+        if date_to: where.append(Document.reg_date <= date_to)
+        if eq_type: where.append(Equipment.eq_type == eq_type)
+
+        if where: stmt = stmt.where(and_(*where))
+
+        # --- ОТЛАДКА ФИНАЛЬНЫХ УСЛОВИЙ ---
+        print("--------------------------------------------------")
+        print("DEBUG [REPOSITORY]: Финальные SQL-условия (WHERE):")
+        for condition in where:
+            print(f"  - {str(condition)}")
+        print("--------------------------------------------------")
+        # --- КОНЕЦ ОТЛАДКИ ---
+
+        stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
         res = await self.session.execute(stmt)
         return res.fetchall()

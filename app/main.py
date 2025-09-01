@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import equipment, sessions, documents, admin, reports, suggest, importer, ui
+from app.routers import equipment, sessions, documents, admin, reports, suggest, importer, ui, wizard, admin_dashboard
 from app.core.db import SessionLocal
 from app.tasks.cleanup import start_scheduler
 
@@ -16,7 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
 )
 
-app.include_router(ui.router)
 app.include_router(equipment.router)
 app.include_router(sessions.router)
 app.include_router(documents.router)
@@ -24,6 +23,9 @@ app.include_router(admin.router)
 app.include_router(reports.router)
 app.include_router(suggest.router)
 app.include_router(importer.router)
+app.include_router(ui.router)
+app.include_router(wizard.router)
+app.include_router(admin_dashboard.router)
 
 
 @app.on_event("startup")

@@ -55,10 +55,92 @@ class ReportsService:
             )
         return payload
 
+    async def get_rows_extended(
+        self, 
+        station_objects: list[str] | None, 
+        station_no: str | None,
+        label: str | None,
+        factory_no: str | None,
+        order_no: str | None,
+        date_from, 
+        date_to
+    ):
+        """Расширенный поиск с дополнительными фильтрами"""
+        rows = await self.repo.fetch_extended(
+            station_objects, station_no, label, factory_no, order_no, date_from, date_to
+        )
+        payload = []
+        for (
+            numeric,
+            reg_date,
+            doc_name,
+            note,
+            eq_type,
+            factory_no,
+            order_no,
+            label,
+            station_no,
+            station_object,
+            username,
+        ) in rows:
+            payload.append(
+                {
+                    "doc_no": format_doc_no(numeric),
+                    "reg_date": reg_date.strftime('%d.%m.%Y %H:%M') if reg_date else '',
+                    "doc_name": doc_name,
+                    "note": note,
+                    "eq_type": eq_type,
+                    "factory_no": factory_no,
+                    "order_no": order_no,
+                    "label": label,
+                    "station_no": station_no,
+                    "station_object": station_object,
+                    "username": username,
+                }
+            )
+        return payload
+
     async def export_excel(self, station_objects: list[str] | None, date_from, date_to) -> str:
         data = await self.get_rows(station_objects, date_from, date_to)
         builder = ReportExcelBuilder()
         path = builder.build_report(data)
+        return path
+
+    async def export_excel_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to) -> str:
+        """Экспорт в Excel с расширенными фильтрами"""
+        data = await self.get_rows_extended(station_objects, station_no, label, factory_no, order_no, date_from, date_to)
+        builder = ReportExcelBuilder()
+        path = builder.build_report_extended(data)
+        return path
+    
+    async def get_rows_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None) -> list[dict]:
+        """Расширенный поиск для админов с дополнительными фильтрами"""
+        rows = await self.repo.fetch_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type)
+        payload = []
+        for (
+            id_, numeric, reg_date, doc_name, note, eq_type, factory_no, order_no, label, station_no, station_object, username,
+        ) in rows:
+            payload.append({
+                "id": id_,
+                "doc_no": format_doc_no(numeric),
+                "reg_date": reg_date.strftime('%d.%m.%Y %H:%M') if reg_date else '',
+                "doc_name": doc_name,
+                "note": note,
+                "eq_type": eq_type,
+                "factory_no": factory_no,
+                "order_no": order_no,
+                "label": label,
+                "station_no": station_no,
+                "station_object": station_object,
+                "username": username,
+            })
+        return payload
+    
+    async def export_excel_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None) -> str:
+        """Экспорт в Excel для админов с расширенными фильтрами"""
+        data = await self.get_rows_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type)
+        builder = ReportExcelBuilder()
+        path = builder.build_report_extended_admin(data)
         return path
 
 

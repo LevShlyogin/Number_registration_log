@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Request, Query, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,74 @@ from app.schemas.equipment import EquipmentCreate, EquipmentOut
 from app.services.equipment import EquipmentService
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
+
+def clean_param(p: str | None) -> str | None:
+    if p is None:
+        return None
+    stripped = p.strip()
+    return stripped if stripped else None
+
+@router.get("/search")
+async def search_equipment(
+    request: Request,
+    # ### ИЗМЕНЕНО: Добавляем alias для всех параметров ###
+    station_object: str | None = Query(None, alias="station_object"),
+    station_no: str | None = Query(None, alias="station_no"),
+    label: str | None = Query(None, alias="label"),
+    factory_no: str | None = Query(None, alias="factory_no"),
+    order_no: str | None = Query(None, alias="order_no"),
+    q: str | None = Query(None, alias="q"),
+    session: AsyncSession = Depends(lifespan_session),
+    user: CurrentUser = Depends(get_current_user),
+):
+    svc = EquipmentService(session)
+    # ### ИЗМЕНЕНО: Используем очищенные параметры ###
+    results = await svc.search(
+        station_object=clean_param(station_object), 
+        station_no=clean_param(station_no), 
+        label=clean_param(label), 
+        factory_no=clean_param(factory_no), 
+        order_no=clean_param(order_no), 
+        q=clean_param(q)
+    )
+    
+    if request.headers.get("Hx-Request") == "true":
+        # Для HTMX возвращаем HTML с кнопками выбора
+        if not results:
+            html = """
+            <div class="alert alert-info">
+                Ничего не найдено. 
+                <button class="btn btn-outline-primary btn-sm" onclick="showCreateForm()">
+                    Создать новый объект
+                </button>
+            </div>
+            """
+        else:
+            html = '<div class="mb-3"><strong>Найденные объекты:</strong></div>'
+            for eq in results:
+                html += f"""
+                <div class="equipment-item" data-equipment-id="{eq.id}">
+                    <div class="equipment-header">
+                        <strong>{eq.eq_type}</strong> - {eq.station_object or 'N/A'} 
+                        {eq.station_no and f'(ст.{eq.station_no})' or ''} 
+                        {eq.label and f'[{eq.label}]' or ''}
+                    </div>
+                    <div class="equipment-details">
+                        <small class="text-muted">
+                            ID: {eq.id} | 
+                            Заводской: {eq.factory_no or 'N/A'} | 
+                            Заказ: {eq.order_no or 'N/A'}
+                        </small>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-2" onclick="selectEquipment({eq.id})">
+                        Выбрать
+                    </button>
+                </div>
+                """
+        return HTMLResponse(html)
+    else:
+        # Для API возвращаем JSON
+        return JSONResponse([EquipmentOut.model_validate(eq).model_dump() for eq in results])
 
 
 @router.post("")
@@ -25,25 +93,40 @@ async def create_equipment(
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
+    # ### ИЗМЕНЕНО: Очищаем данные и здесь ###
     payload = EquipmentCreate(
-        eq_type=eq_type,
-        factory_no=factory_no,
-        order_no=order_no,
-        label=label,
-        station_no=station_no,
-        station_object=station_object,
-        notes=notes,
+        eq_type=clean_param(eq_type),
+        factory_no=clean_param(factory_no),
+        order_no=clean_param(order_no),
+        label=clean_param(label),
+        station_no=clean_param(station_no),
+        station_object=clean_param(station_object),
+        notes=notes.strip() if notes else None,
     )
-    svc = EquipmentService(session)
-    eq = await svc.create(payload.model_dump())
+    
+    try:
+        svc = EquipmentService(session)
+        eq = await svc.create(payload.model_dump())
 
-    # Если запрос пришел из HTMX (форма в UI), вернем HTML-фрагмент,
-    # иначе — JSON для API-клиентов (Postman/Bruno)
-    if request.headers.get("Hx-Request") == "true":
-        html = (
-            f'<div class="badge">Создано оборудование: ID={eq.id}, '
-            f'тип: <b>{eq.eq_type}</b></div>'
-        )
-        return HTMLResponse(html)
-    else:
-        return JSONResponse(EquipmentOut.model_validate(eq).model_dump())
+        if request.headers.get("Hx-Request") == "true":
+            html = (
+                f'<div class="alert alert-success">Создано оборудование: ID={eq.id}, '
+                f'тип: <b>{eq.eq_type}</b></div>'
+                f'<script>selectEquipment({eq.id});</script>'
+            )
+            return HTMLResponse(html)
+        else:
+            return JSONResponse(EquipmentOut.model_validate(eq).model_dump())
+            
+    except HTTPException as e:
+        if request.headers.get("Hx-Request") == "true":
+            html = f'<div class="alert alert-danger">Ошибка: {e.detail}</div>'
+            return HTMLResponse(html, status_code=e.status_code)
+        else:
+            raise e
+    except Exception as e:
+        if request.headers.get("Hx-Request") == "true":
+            html = f'<div class="alert alert-danger">Ошибка создания: {str(e)}</div>'
+            return HTMLResponse(html, status_code=500)
+        else:
+            raise HTTPException(status_code=500, detail=f"Ошибка создания: {str(e)}")
