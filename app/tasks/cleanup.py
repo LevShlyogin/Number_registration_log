@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 def start_scheduler(session_factory):
     scheduler = AsyncIOScheduler()
-    # стартуем через 60 секунд, чтобы миграции точно успели
     scheduler.add_job(
         _cleanup_expired,
         IntervalTrigger(seconds=60),
@@ -33,8 +32,7 @@ def start_scheduler(session_factory):
 
 async def _cleanup_expired(session_factory):
     try:
-        async with session_factory() as session:  # type: AsyncSession
-            # проверка наличия нужных таблиц
+        async with session_factory() as session:
             ok = await _tables_exist(session)
             if not ok:
                 logger.info("TTL cleanup: tables not ready yet, skipping this run")
@@ -47,7 +45,6 @@ async def _cleanup_expired(session_factory):
             await nrepo.release_expired(now)
             await session.commit()
     except ProgrammingError as e:
-        # если вдруг миграции еще не применены — тихо пропускаем
         logger.warning("TTL cleanup skipped (DB not ready): %s", e)
     except Exception as e:
         logger.exception("TTL cleanup job failed: %s", e)
