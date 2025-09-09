@@ -1,45 +1,28 @@
 <template>
-  <v-card flat>
-    <v-card-title class="text-h5 font-weight-bold"> Регистрация номеров документов </v-card-title>
-    <v-card-subtitle>
-      Пошаговый мастер для поиска оборудования и назначения номеров
-    </v-card-subtitle>
+  <v-container>
+    <v-row justify="center">
+      <v-col cols="12" md="10" lg="8">
+        <v-card flat class="border">
+          <v-card-title class="text-h5 font-weight-bold border-b">
+            <v-icon icon="mdi-file-document-edit-outline" start></v-icon>
+            Регистрация номеров документов
+          </v-card-title>
 
-    <v-card-text>
-      <v-stepper :items="steps" v-model="currentStep" class="mb-5" alt-labels>
-        <!-- Можно кастомизировать отображение шагов через слоты, если нужно -->
-      </v-stepper>
+          <v-stepper v-model="currentStep" :items="steps" alt-labels hide-actions flat>
+            <!-- alt-labels делает шаги с текстом под иконкой, hide-actions убирает дефолтные кнопки -->
+          </v-stepper>
 
-      <!-- Здесь будут рендериться компоненты шагов -->
-      <router-view />
-    </v-card-text>
-  </v-card>
+          <v-divider></v-divider>
+
+          <v-card-text>
+            <router-view v-slot="{ Component }">
+              <v-fade-transition mode="out-in">
+                <component :is="Component" />
+              </v-fade-transition>
+            </router-view>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
-
-<script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
-const steps = ['Оборудование', 'Резерв', 'Назначение']
-const currentStep = ref(1) // Шаги нумеруются с 1 в v-stepper
-
-// Синхронизируем v-stepper с текущим роутом
-watch(
-  () => route.name,
-  (routeName) => {
-    switch (routeName) {
-      case 'wizard-equipment':
-        currentStep.value = 1
-        break
-      case 'wizard-reserve':
-        currentStep.value = 2
-        break
-      case 'wizard-assign':
-        currentStep.value = 3
-        break
-    }
-  },
-  { immediate: true },
-)
-</script>

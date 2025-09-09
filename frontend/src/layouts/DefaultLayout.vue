@@ -1,30 +1,78 @@
 <template>
   <v-app>
-    <v-app-bar app color="primary" dark>
-      <v-toolbar-title class="app-title">
-        <v-icon icon="mdi-notebook-edit-outline" class="mr-2"></v-icon>
-        Журнал регистрации УТЗ
-      </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <div v-if="user.username" class="user-info mr-4">
-        Пользователь: <strong>{{ user.username }}</strong>
-        <v-chip v-if="user.isAdmin" size="small" color="amber" class="ml-2">Админ</v-chip>
-      </div>
+    <!-- AppBar (Header) -->
+    <v-app-bar app flat border>
+      <v-container class="d-flex align-center pa-0" fluid>
+        <!-- Лого и Название -->
+        <v-toolbar-title class="app-title d-flex align-center" @click="router.push('/')">
+          <v-avatar class="mr-3">
+            <v-img src="/logo.png" alt="WSA Logo"></v-img>
+            <!-- Убедись, что logo.png в public/ -->
+          </v-avatar>
+          <span class="font-weight-bold d-none d-sm-inline">Журнал регистрации УТЗ</span>
+        </v-toolbar-title>
+
+        <v-spacer></v-spacer>
+
+        <!-- Навигационные ссылки -->
+        <div class="d-none d-md-flex">
+          <v-btn
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            variant="text"
+            class="nav-link"
+          >
+            <v-icon :icon="link.icon" start></v-icon>
+            {{ link.label }}
+          </v-btn>
+        </div>
+
+        <!-- Кнопка темы и информация о пользователе -->
+        <theme-toggle-button />
+        <div v-if="auth.user" class="user-info ml-3 pl-3 border-s">
+          <v-avatar size="32" class="mr-2">
+            <v-icon icon="mdi-account-circle"></v-icon>
+          </v-avatar>
+          <div class="d-none d-lg-block">
+            <div class="username">{{ auth.user.fullName }}</div>
+            <div class="login">{{ auth.user.login }}</div>
+          </div>
+        </div>
+
+        <!-- Мобильное меню (бургер) -->
+        <v-app-bar-nav-icon
+          class="d-md-none"
+          @click.stop="isNavDrawerOpen = !isNavDrawerOpen"
+        ></v-app-bar-nav-icon>
+      </v-container>
     </v-app-bar>
 
+    <!-- Мобильная навигация (Drawer) -->
+    <v-navigation-drawer v-model="isNavDrawerOpen" temporary location="right">
+      <v-list>
+        <v-list-item
+          v-for="link in navLinks"
+          :key="link.to"
+          :to="link.to"
+          :prepend-icon="link.icon"
+          :title="link.label"
+          @click="isNavDrawerOpen = false"
+        ></v-list-item>
+      </v-list>
+    </v-navigation-drawer>
+
+    <!-- Основной контент -->
     <v-main>
-      <v-container fluid>
+      <v-container>
         <router-view />
       </v-container>
     </v-main>
 
-    <v-footer app class="text-center d-flex flex-column pa-0">
-      <div class="bg-primary d-flex w-100 align-center px-4">
-        <!-- Можно добавить иконки соцсетей или другую информацию -->
-        <v-spacer></v-spacer>
-      </div>
-      <div class="px-4 py-2 bg-black text-center w-100">
-        © {{ new Date().getFullYear() }} — <strong>FastAPI + Vue.js</strong>
+    <!-- Footer -->
+    <v-footer app class="justify-center" height="40">
+      <div class="text-caption">
+        © {{ new Date().getFullYear() }} — АО «Уральский турбинный завод»
       </div>
     </v-footer>
   </v-app>
@@ -32,25 +80,48 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import ThemeToggleButton from '@/components/ThemeToggleButton.vue'
+import { useAuthStore } from '@/stores/auth' // Наш стор для аутентификации
 
-// Заглушка для информации о пользователе
-// В реальном приложении это будет приходить из Pinia-стора или composable-функции
-const user = ref({
-  username: 'yuaalekseeva',
+const router = useRouter()
+const auth = useAuthStore()
+const isNavDrawerOpen = ref(false)
+
+const navLinks = [
+  { to: '/wizard', label: 'Регистрация', icon: 'mdi-file-document-edit-outline' },
+  { to: '/reports', label: 'Отчеты', icon: 'mdi-chart-bar' },
+  { to: '/admin', label: 'Админка', icon: 'mdi-shield-crown-outline' },
+]
+
+// При монтировании компонента мы должны запросить информацию о пользователе
+// и сохранить ее в Pinia-сторе. Пока что используем заглушку.
+auth.loginAs({
+  login: 'yuaalekseeva',
+  fullName: 'Алексеева Ю. А.',
   isAdmin: true,
 })
-
-// onMounted(() => {
-//   // Здесь будет логика для получения X-User и установки в Pinia store
-// });
 </script>
 
 <style scoped>
 .app-title {
   cursor: pointer;
-  font-weight: 600;
+}
+.nav-link.v-btn--active {
+  color: rgb(var(--v-theme-primary));
 }
 .user-info {
+  display: flex;
+  align-items: center;
+}
+.username {
+  font-weight: 500;
   font-size: 0.9rem;
+  line-height: 1.1;
+}
+.login {
+  font-size: 0.8rem;
+  color: grey;
+  line-height: 1.1;
 }
 </style>
