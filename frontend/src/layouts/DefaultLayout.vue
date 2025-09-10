@@ -79,10 +79,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ThemeToggleButton from '@/components/ThemeToggleButton.vue'
-import { useAuthStore } from '@/stores/auth' // Наш стор для аутентификации
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -94,21 +94,16 @@ const navLinks = [
   { to: '/admin', label: 'Админка', icon: 'mdi-shield-crown-outline' },
 ]
 
-// При монтировании компонента мы должны запросить информацию о пользователе
-// и сохранить ее в Pinia-сторе. Пока что используем заглушку.
-auth.loginAs({
-  login: 'yuaalekseeva',
-  fullName: 'Алексеева Ю. А.',
-  isAdmin: true,
+onMounted(() => {
+  if (!auth.isAuthenticated) {
+    auth.fetchUser()
+  }
 })
 </script>
 
 <style scoped>
 .app-title {
   cursor: pointer;
-}
-.nav-link.v-btn--active {
-  color: rgb(var(--v-theme-primary));
 }
 .user-info {
   display: flex;

@@ -2,39 +2,62 @@
   <v-container fluid class="pa-0">
     <!-- Форма поиска -->
     <v-card variant="outlined" class="mb-6">
-      <v-card-title>Поиск оборудования</v-card-title>
+      <v-card-title>
+        <v-icon start icon="mdi-magnify"></v-icon>
+        Поиск оборудования
+      </v-card-title>
       <v-card-text>
-        <v-row>
-          <v-col cols="12" md="6">
-            <v-text-field
-              v-model="searchParams.station_object"
-              label="Станция / Объект"
-              clearable
-            />
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-text-field v-model="searchParams.station_no" label="№ станционный" clearable />
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-text-field v-model="searchParams.label" label="Маркировка" clearable />
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-text-field v-model="searchParams.factory_no" label="№ заводской" clearable />
-          </v-col>
-          <v-col cols="12">
-            <v-text-field v-model="searchParams.q" label="Поиск по всем полям" clearable />
-          </v-col>
-        </v-row>
+        <!-- Форма теперь использует v-form для валидации, если нужно -->
+        <v-form @submit.prevent="performSearch">
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="formParams.station_object"
+                label="Станция / Объект"
+                clearable
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="formParams.station_no"
+                label="№ станционный"
+                clearable
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="formParams.label"
+                label="Маркировка"
+                clearable
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="formParams.factory_no"
+                label="№ заводской"
+                clearable
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12">
+              <v-text-field
+                v-model="formParams.q"
+                label="Поиск по всем полям"
+                clearable
+                hide-details="auto"
+              />
+            </v-col>
+          </v-row>
+        </v-form>
       </v-card-text>
       <v-card-actions>
         <v-btn @click="performSearch" :loading="isLoading" color="primary" variant="flat">
-          <v-icon start icon="mdi-magnify"></v-icon>
           Поиск
         </v-btn>
-        <v-btn @click="isCreateFormVisible = true" variant="tonal">
-          <v-icon start icon="mdi-plus-circle-outline"></v-icon>
-          Создать новый объект
-        </v-btn>
+        <v-btn @click="showCreateForm" variant="tonal"> Создать новый объект </v-btn>
       </v-card-actions>
     </v-card>
 
@@ -49,16 +72,14 @@
         <p v-if="results.length > 0" class="text-subtitle-1 mb-2">
           Найдено объектов: {{ results.length }}
         </p>
-        <p v-else class="text-subtitle-1 mb-2 text-grey">
-          Ничего не найдено. Попробуйте изменить параметры поиска или создайте новый объект.
-        </p>
+        <p v-else class="text-subtitle-1 mb-2 text-grey">Ничего не найдено.</p>
 
-        <v-list lines="two">
+        <v-list lines="two" select-strategy="single-independent">
           <v-list-item
             v-for="item in results"
             :key="item.id"
             @click="selectEquipment(item.id)"
-            :active="selectedId === item.id"
+            :value="item.id"
             active-color="primary"
             rounded="lg"
             class="mb-2 border"
@@ -76,26 +97,13 @@
               Зав. №: {{ item.factory_no || '-' }} | Ст. №: {{ item.station_no || '-' }} |
               Маркировка: {{ item.label || '-' }}
             </v-list-item-subtitle>
-
-            <template #append>
-              <v-btn
-                @click.stop="selectEquipment(item.id)"
-                size="small"
-                variant="tonal"
-                color="primary"
-              >
-                Выбрать
-              </v-btn>
-            </template>
           </v-list-item>
         </v-list>
       </div>
     </div>
 
-    <!-- TODO: Форма создания (пока скрыта) -->
-    <div v-if="isCreateFormVisible">
-      <!-- Здесь будет компонент для создания нового оборудования -->
-    </div>
+    <!-- Модальное окно для создания нового оборудования -->
+    <equipment-create-dialog v-model="isCreateDialogVisible" @success="onEquipmentCreated" />
 
     <!-- Навигация -->
     <div class="mt-6 d-flex justify-end">
@@ -118,35 +126,34 @@ import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useEquipmentSearch, type SearchParams } from '@/composables/useEquipmentSearch'
 import type { EquipmentOut } from '@/types/api'
+import EquipmentCreateDialog from '@/components/wizard/EquipmentCreateDialog.vue' // Наш новый компонент
 
 const router = useRouter()
 const wizardStore = useWizardStore()
 
-const isCreateFormVisible = ref(false)
-const selectedId = ref<number | null>(null)
+const isCreateDialogVisible = ref(false)
 
-// Реактивные параметры для формы поиска
-const searchParams = reactive<SearchParams>({
-  station_object: '',
-  station_no: '',
-  label: '',
-  factory_no: '',
-  order_no: '',
-  q: '',
-})
-
-// Используем наш composable
-const { results, isLoading, isError, error, search } = useEquipmentSearch(searchParams)
+const formParams = reactive<SearchParams>({})
+const { results, isLoading, isError, error, search } = useEquipmentSearch()
 
 function performSearch() {
-  selectedId.value = null // Сбрасываем выбор при новом поиске
-  wizardStore.selectedEquipmentId = null
-  search() // Запускаем поиск
+  wizardStore.selectedEquipmentId = null // Сбрасываем выбор
+  search(formParams) // Запускаем поиск с текущими параметрами формы
 }
 
 function selectEquipment(id: number) {
-  selectedId.value = id
   wizardStore.setEquipment(id)
+}
+
+function showCreateForm() {
+  isCreateDialogVisible.value = true
+}
+
+function onEquipmentCreated(newItem: EquipmentOut) {
+  // После успешного создания:
+  isCreateDialogVisible.value = false // Закрываем диалог
+  selectEquipment(newItem.id) // Сразу выбираем новый элемент
+  goNext() // И сразу переходим на следующий шаг
 }
 
 function goNext() {
