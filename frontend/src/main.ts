@@ -4,6 +4,9 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 
+// --- Vue Query ---
+import { VueQueryPlugin } from '@tanstack/vue-query'
+
 // --- Vuetify ---
 import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
@@ -27,17 +30,17 @@ const vuetify = createVuetify({
           info: '#2196F3',
           success: '#4CAF50',
           warning: '#FB8C00',
-        }
+        },
       },
       dark: {
         dark: true,
         colors: {
           primary: '#2196F3',
           // ... можно определить цвета и для темной темы
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 })
 // --- Конец Vuetify ---
 
@@ -46,5 +49,6 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(vuetify)
+app.use(VueQueryPlugin)
 
 app.mount('#app')
