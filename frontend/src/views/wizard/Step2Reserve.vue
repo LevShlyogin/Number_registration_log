@@ -1,43 +1,117 @@
 <template>
-  <div>
-    <h3 class="text-h6 mb-4">Шаг 2: Резервирование номеров</h3>
-    <p class="text-body-1 mb-4">
-      Оборудование ID: <strong>{{ equipmentId }}</strong>
-    </p>
-    <v-text-field
-      type="number"
-      label="Количество номеров"
-      min="1"
-      max="100"
-      model-value="1"
-    ></v-text-field>
-    <v-btn color="primary">Резервировать</v-btn>
-    <div class="mt-4">
-      <v-btn @click="goBack" class="mr-4" variant="outlined">Назад</v-btn>
-      <v-btn @click="goNext" color="primary" disabled>Далее</v-btn>
+  <v-container fluid class="pa-0">
+    <v-row>
+      <v-col>
+        <h3 class="text-h6 mb-2">Шаг 2: Резервирование номеров</h3>
+        <p class="text-body-1 mb-4">
+          Оборудование ID: <strong>{{ equipmentId }}</strong>
+        </p>
+
+        <v-form @submit.prevent="handleReserve">
+          <v-text-field
+            v-model.number="quantity"
+            type="number"
+            label="Количество номеров для резервирования"
+            :rules="[rules.required, rules.positive]"
+            min="1"
+            max="100"
+            style="max-width: 400px"
+            hide-details="auto"
+            class="mb-4"
+          />
+          <v-btn type="submit" :loading="isLoading" color="primary" variant="flat">
+            Резервировать
+          </v-btn>
+        </v-form>
+
+        <v-alert v-if="isError" type="error" variant="tonal" class="mt-4">
+          Ошибка при резервировании: {{ (error as Error).message }}
+        </v-alert>
+
+        <!-- Отображение результатов после успешного резервирования -->
+        <v-card v-if="result" variant="tonal" color="success" class="mt-6">
+          <v-card-title>
+            <v-icon start icon="mdi-check-circle"></v-icon>
+            Успешно зарезервировано!
+          </v-card-title>
+          <v-card-text>
+            <p><strong>ID сессии:</strong> {{ result.session_id }}</p>
+            <p><strong>Номера:</strong></p>
+            <v-chip-group>
+              <v-chip v-for="num in result.reserved_numbers" :key="num" size="small">
+                {{ num }}
+              </v-chip>
+            </v-chip-group>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Навигация -->
+    <div class="mt-6 d-flex justify-space-between">
+      <v-btn @click="goBack" variant="outlined">
+        <v-icon start icon="mdi-arrow-left"></v-icon>
+        Назад
+      </v-btn>
+      <v-btn @click="goNext" color="primary" size="large" :disabled="!wizardStore.hasActiveSession">
+        Далее
+        <v-icon end icon="mdi-arrow-right"></v-icon>
+      </v-btn>
     </div>
-  </div>
+  </v-container>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
+import { useNumberReservation } from '@/composables/useNumberReservation'
+import type { ReserveNumbersOut } from '@/types/api'
 
-// Получаем пропс, переданный из роутера
-defineProps<{
-  equipmentId: string
+const props = defineProps<{
+  equipmentId: string // Приходит из URL
 }>()
 
 const router = useRouter()
 const wizardStore = useWizardStore()
+const { reserve, isLoading, isError, error, result } = useNumberReservation()
+
+const quantity = ref(1)
+const rules = {
+  required: (value: number) => !!value || 'Это поле обязательно.',
+  positive: (value: number) => value > 0 || 'Количество должно быть больше нуля.',
+}
+
+function handleReserve() {
+  reserve(
+    {
+      equipment_id: Number(props.equipmentId),
+      quantity: quantity.value,
+    },
+    {
+      onSuccess: (data: ReserveNumbersOut) => {
+        // При успехе сохраняем данные в Pinia store
+        wizardStore.setSession(data.session_id, data.reserved_numbers)
+      },
+      onError: () => {
+        // Очищаем сессию в сторе, если резервирование не удалось
+        wizardStore.currentSessionId = null
+        wizardStore.reservedNumbers = []
+      },
+    },
+  )
+}
 
 function goBack() {
   router.back()
 }
 
 function goNext() {
-  const fakeSessionId = 'xyz-abc-123' // Заглушка
-  wizardStore.setSession(fakeSessionId, [1001, 1002])
-  router.push({ name: 'wizard-assign', params: { sessionId: fakeSessionId } })
+  if (wizardStore.currentSessionId) {
+    router.push({
+      name: 'wizard-assign',
+      params: { sessionId: wizardStore.currentSessionId },
+    })
+  }
 }
 </script>
