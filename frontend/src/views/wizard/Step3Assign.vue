@@ -127,7 +127,6 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberAssignment } from '@/composables/useNumberAssignment'
-import type { AssignNumberIn } from '@/types/api'
 
 const props = defineProps<{
   sessionId: string
@@ -145,7 +144,7 @@ const {
 } = useNumberAssignment(props.sessionId)
 
 const formRef = ref<any>(null)
-const formData = reactive<Omit<AssignNumberIn, 'session_id'>>({
+const formData = reactive({
   doc_name: '',
   notes: '',
 })
@@ -153,29 +152,30 @@ const rules = {
   required: (value: string) => !!value || 'Это поле обязательно.',
 }
 
-// Вычисляем список свободных номеров
 const freeNumbers = computed(() => {
   const assignedSet = new Set(assignedNumbers.value?.map((item) => item.doc_no) ?? [])
   return wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
 })
 
-// Получаем следующий свободный номер для отображения
 const nextFreeNumber = computed(() => {
   return freeNumbers.value.length > 0 ? freeNumbers.value[0] : null
 })
 
 async function handleAssign() {
   const { valid } = await formRef.value.validate()
-  if (valid && wizardStore.currentSessionId) {
+
+  if (valid && wizardStore.currentSessionId && nextFreeNumber.value !== null) {
     assignNumber(
       {
-        session_id: wizardStore.currentSessionId,
-        doc_name: formData.doc_name,
-        notes: formData.notes,
+        data: {
+          session_id: wizardStore.currentSessionId,
+          doc_name: formData.doc_name,
+          notes: formData.notes,
+        },
+        nextNumberToAssign: nextFreeNumber.value,
       },
       {
         onSuccess: () => {
-          // После успеха сбрасываем поля формы для следующего назначения
           formRef.value.reset()
         },
       },
@@ -188,7 +188,7 @@ function goBack() {
 }
 
 function complete() {
-  wizardStore.reset() // Очищаем состояние визарда
-  router.push({ name: 'reports' }) // Переходим на страницу отчетов
+  wizardStore.reset()
+  router.push({ name: 'reports' })
 }
 </script>
