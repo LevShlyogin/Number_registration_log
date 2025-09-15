@@ -1,26 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import { useWizardStore } from '@/stores/wizard.ts'
+import { useWizardStore } from '@/stores/wizard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      component: DefaultLayout, // Все роуты будут использовать этот layout
+      component: DefaultLayout,
       children: [
         {
-          path: '', // Главная страница
+          path: '',
           name: 'home',
           component: () => import('@/views/HomeView.vue'),
         },
-        // --- Группа роутов для Wizard-а ---
         {
           path: 'wizard',
           name: 'wizard',
-          // Можно создать компонент-обертку для визарда с индикатором шагов
           component: () => import('@/views/wizard/WizardWrapper.vue'),
-          redirect: '/wizard/equipment', // При переходе на /wizard, сразу редирект на первый шаг
+          redirect: '/wizard/equipment',
           children: [
             {
               path: 'equipment',
@@ -32,19 +30,26 @@ const router = createRouter({
               name: 'wizard-reserve',
               component: () => import('@/views/wizard/Step2Reserve.vue'),
               props: true,
-              // Навигационный хук (guard)
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
-                // Разрешаем вход, только если оборудование выбрано ИЛИ
-                // если мы пришли не из визарда (прямая ссылка)
-                if (wizardStore.hasSelectedEquipment || from.name !== 'wizard-equipment') {
-                  // При прямой загрузке, устанавливаем ID из URL в стор
-                  if (!wizardStore.hasSelectedEquipment) {
-                    wizardStore.setEquipment(Number(to.params.equipmentId))
-                  }
+                const equipmentIdFromUrl = Number(to.params.equipmentId)
+
+                // Разрешаем вход, если ID оборудования уже есть в сторе
+                if (wizardStore.selectedEquipmentId === equipmentIdFromUrl) {
                   return true
                 }
-                // Иначе возвращаем на первый шаг
+
+                // Разрешаем вход, если мы пришли не из визарда (прямая ссылка)
+                // и пытаемся восстановить состояние
+                if (!from.path.startsWith('/wizard')) {
+                  console.log('Direct navigation to Step 2, restoring state from URL...')
+                  wizardStore.setEquipment(equipmentIdFromUrl)
+                  return true
+                }
+
+                // Во всех остальных случаях (например, переход с шага 1 без выбора)
+                // возвращаем на первый шаг.
+                console.warn('Blocked navigation to Step 2: no equipment selected.')
                 return { name: 'wizard-equipment' }
               },
             },
@@ -55,32 +60,57 @@ const router = createRouter({
               props: true,
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
-                if (wizardStore.hasActiveSession || from.name !== 'wizard-reserve') {
-                  if (!wizardStore.hasActiveSession) {
-                    // Здесь сложнее восстановить, т.к. нет номеров.
-                    // Пока просто разрешаем, но в будущем можно делать API-запрос на восстановление сессии.
-                  }
+                const sessionIdFromUrl = String(to.params.sessionId)
+
+                if (wizardStore.currentSessionId === sessionIdFromUrl) {
                   return true
                 }
-                return {
-                  name: 'wizard-reserve',
-                  params: { equipmentId: wizardStore.selectedEquipmentId },
+
+                if (!from.path.startsWith('/wizard')) {
+                  // При прямой навигации на этот шаг сложно восстановить состояние (нет номеров)
+                  // Поэтому просто перенаправляем на начало
+                  console.warn(
+                    'Direct navigation to Step 3 is not fully supported, redirecting to Step 1.',
+                  )
+                  wizardStore.reset()
+                  return { name: 'wizard-equipment' }
                 }
+
+                console.warn('Blocked navigation to Step 3: no active session.')
+                // Если нет сессии, возвращаем на предыдущий шаг, сохранив ID оборудования
+                if (wizardStore.selectedEquipmentId) {
+                  return {
+                    name: 'wizard-reserve',
+                    params: { equipmentId: wizardStore.selectedEquipmentId },
+                  }
+                }
+                return { name: 'wizard-equipment' }
               },
             },
           ],
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('@/views/ReportsView.vue'),
+        },
+        {
+          path: 'admin',
+          name: 'admin',
+          component: () => import('@/views/AdminView.vue'),
         },
       ],
     },
   ],
 })
 
-// Глобальный хук для сброса состояния визарда, если ушли с него
 router.beforeEach((to, from) => {
-  if (!to.path.startsWith('/wizard') && from.path.startsWith('/wizard')) {
+  if (from.path.startsWith('/wizard') && !to.path.startsWith('/wizard')) {
     const wizardStore = useWizardStore()
-    wizardStore.reset()
-    console.log('Wizard state has been reset.')
+    if (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession) {
+      console.log('Leaving wizard, resetting state...')
+      wizardStore.reset()
+    }
   }
 })
 

@@ -7,14 +7,9 @@
             <v-icon icon="mdi-file-document-edit-outline" start></v-icon>
             Регистрация номеров документов
           </v-card-title>
-
-          <v-stepper v-model="currentStep" :items="steps" alt-labels hide-actions flat>
-            <!-- alt-labels делает шаги с текстом под иконкой, hide-actions убирает дефолтные кнопки -->
-          </v-stepper>
-
+          <v-stepper v-model="currentStep" :items="steps" alt-labels hide-actions flat> </v-stepper>
           <v-divider></v-divider>
-
-          <v-card-text>
+          <v-card-text class="pa-sm-6">
             <router-view v-slot="{ Component }">
               <v-fade-transition mode="out-in">
                 <component :is="Component" />
@@ -28,18 +23,44 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeRouteLeave } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 
+const route = useRoute()
 const wizardStore = useWizardStore()
 
+const steps = ['Оборудование', 'Резерв', 'Назначение']
+const currentStep = ref(1)
+
+watch(
+  () => route.name,
+  (routeName) => {
+    switch (routeName) {
+      case 'wizard-equipment':
+        currentStep.value = 1
+        break
+      case 'wizard-reserve':
+        currentStep.value = 2
+        break
+      case 'wizard-assign':
+        currentStep.value = 3
+        break
+    }
+  },
+  { immediate: true },
+)
+
 onBeforeRouteLeave((to, from) => {
-  // Если уходим не на следующую/предыдущую страницу визарда, и есть активное состояние
-  if (!to.path.startsWith('/wizard') && (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)) {
+  if (
+    !to.path.startsWith('/wizard') &&
+    (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)
+  ) {
     const answer = window.confirm(
-      'Вы уверены, что хотите покинуть мастер регистрации? Все несохраненные данные будут потеряны.'
+      'Вы уверены, что хотите покинуть мастер регистрации? Все несохраненные данные будут потеряны.',
     )
-    if (!answer) return false // Отменяем навигацию
+    if (!answer) return false
   }
+  return true
 })
 </script>
