@@ -26,3 +26,20 @@
     </v-row>
   </v-container>
 </template>
+
+<script setup lang="ts">
+import { onBeforeRouteLeave } from 'vue-router'
+import { useWizardStore } from '@/stores/wizard'
+
+const wizardStore = useWizardStore()
+
+onBeforeRouteLeave((to, from) => {
+  // Если уходим не на следующую/предыдущую страницу визарда, и есть активное состояние
+  if (!to.path.startsWith('/wizard') && (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)) {
+    const answer = window.confirm(
+      'Вы уверены, что хотите покинуть мастер регистрации? Все несохраненные данные будут потеряны.'
+    )
+    if (!answer) return false // Отменяем навигацию
+  }
+})
+</script>

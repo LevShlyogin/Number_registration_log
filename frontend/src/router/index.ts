@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import { useWizardStore } from '@/stores/wizard.ts'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,31 +31,57 @@ const router = createRouter({
               path: 'reserve/:equipmentId',
               name: 'wizard-reserve',
               component: () => import('@/views/wizard/Step2Reserve.vue'),
-              props: true, // Передавать :equipmentId как пропс в компонент
+              props: true,
+              // Навигационный хук (guard)
+              beforeEnter: (to, from) => {
+                const wizardStore = useWizardStore()
+                // Разрешаем вход, только если оборудование выбрано ИЛИ
+                // если мы пришли не из визарда (прямая ссылка)
+                if (wizardStore.hasSelectedEquipment || from.name !== 'wizard-equipment') {
+                  // При прямой загрузке, устанавливаем ID из URL в стор
+                  if (!wizardStore.hasSelectedEquipment) {
+                    wizardStore.setEquipment(Number(to.params.equipmentId))
+                  }
+                  return true
+                }
+                // Иначе возвращаем на первый шаг
+                return { name: 'wizard-equipment' }
+              },
             },
             {
               path: 'assign/:sessionId',
               name: 'wizard-assign',
               component: () => import('@/views/wizard/Step3Assign.vue'),
-              props: true, // Передавать :sessionId как пропс в компонент
+              props: true,
+              beforeEnter: (to, from) => {
+                const wizardStore = useWizardStore()
+                if (wizardStore.hasActiveSession || from.name !== 'wizard-reserve') {
+                  if (!wizardStore.hasActiveSession) {
+                    // Здесь сложнее восстановить, т.к. нет номеров.
+                    // Пока просто разрешаем, но в будущем можно делать API-запрос на восстановление сессии.
+                  }
+                  return true
+                }
+                return {
+                  name: 'wizard-reserve',
+                  params: { equipmentId: wizardStore.selectedEquipmentId },
+                }
+              },
             },
           ],
-        },
-        // --- Отдельная страница для Отчетов ---
-        {
-          path: 'reports',
-          name: 'reports',
-          component: () => import('@/views/ReportsView.vue'),
-        },
-        // --- Отдельная страница для Админки ---
-        {
-          path: 'admin',
-          name: 'admin',
-          component: () => import('@/views/AdminView.vue'),
         },
       ],
     },
   ],
+})
+
+// Глобальный хук для сброса состояния визарда, если ушли с него
+router.beforeEach((to, from) => {
+  if (!to.path.startsWith('/wizard') && from.path.startsWith('/wizard')) {
+    const wizardStore = useWizardStore()
+    wizardStore.reset()
+    console.log('Wizard state has been reset.')
+  }
 })
 
 export default router
