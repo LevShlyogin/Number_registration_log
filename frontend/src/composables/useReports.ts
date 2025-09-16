@@ -76,9 +76,14 @@ export function useReports() {
     // --- КОНЕЦ ЗАГЛУШКИ ---
   }
 
+  // Функция для сброса фильтров и перезагрузки
   const resetFiltersAndRefetch = () => {
     Object.assign(filters, {
-      /* ... */
+      station_object: '',
+      factory_no: '',
+      date_from: '',
+      date_to: '',
+      q: '',
     })
   }
 
@@ -91,6 +96,6 @@ export function useReports() {
     filters,
     refetch,
     resetFiltersAndRefetch,
-    fetchAllReportItems, // <--- ЭКСПОРТИРУЕМ НОВУЮ ФУНКЦИЮ
+    fetchAllReportItems,
   }
 }
