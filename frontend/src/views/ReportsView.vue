@@ -4,7 +4,7 @@
       <v-col>
         <h1 class="text-h4 font-weight-bold mb-4">Отчеты</h1>
         <p class="text-body-1 text-grey mb-6">
-          Просмотр и фильтрация всех зарегистрированных номеров.
+          Просмотр, фильтрация и экспорт всех зарегистрированных номеров.
         </p>
       </v-col>
     </v-row>
@@ -22,7 +22,7 @@
       <v-divider></v-divider>
       <v-card-text>
         <v-row>
-          <v-col cols="12" sm="6" md="4">
+          <v-col cols="12" sm="6" md="3">
             <v-text-field
               v-model="filters.station_object"
               label="Станция / Объект"
@@ -30,7 +30,7 @@
               hide-details="auto"
             ></v-text-field>
           </v-col>
-          <v-col cols="12" sm="6" md="4">
+          <v-col cols="12" sm="6" md="3">
             <v-text-field
               v-model="filters.factory_no"
               label="Заводской номер"
@@ -38,7 +38,7 @@
               hide-details="auto"
             ></v-text-field>
           </v-col>
-          <v-col cols="12" sm="6" md="4">
+          <v-col cols="12" sm="6" md="3">
             <v-text-field
               v-model="filters.q"
               label="Поиск по всем полям"
@@ -46,7 +46,23 @@
               hide-details="auto"
             ></v-text-field>
           </v-col>
-          <!-- TODO: Добавить поля для дат (v-date-picker) -->
+          <v-col cols="12" sm="6" md="3" class="d-flex align-center">
+            <v-text-field
+              v-model="filters.date_from"
+              label="Дата с"
+              type="date"
+              clearable
+              hide-details="auto"
+              class="mr-2"
+            ></v-text-field>
+            <v-text-field
+              v-model="filters.date_to"
+              label="Дата по"
+              type="date"
+              clearable
+              hide-details="auto"
+            ></v-text-field>
+          </v-col>
         </v-row>
       </v-card-text>
     </v-card>
@@ -61,6 +77,7 @@
           variant="tonal"
           prepend-icon="mdi-file-excel-outline"
           @click="exportToExcel"
+          :loading="isExporting"
         >
           Экспорт в Excel
         </v-btn>
@@ -75,13 +92,11 @@
         :items="report?.items || []"
         :items-length="report?.totalItems || 0"
         :loading="isLoading"
-        :search="filters.q"
         item-value="id"
         class="elevation-0"
         hover
         @update:options="loadItems"
       >
-        <!-- Можно добавить кастомные слоты для форматирования ячеек -->
         <template #[`item.created`]="{ item }">
           {{ new Date(item.created).toLocaleDateString() }}
         </template>
@@ -93,6 +108,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useReports } from '@/composables/useReports'
+import * as XLSX from 'xlsx'
+import type { ReportItem } from '@/types/api'
 
 const headers = [
   { title: 'Станция/Объект', key: 'station_object', sortable: true },
@@ -103,17 +120,41 @@ const headers = [
   { title: 'Дата', key: 'created', sortable: true },
 ]
 
-const { report, isLoading, tableOptions, filters, refetch, resetFiltersAndRefetch } = useReports()
+const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =
+  useReports()
 
-// Эта функция будет вызываться v-data-table-server при изменении пагинации или сортировки
-function loadItems() {
-  // refetch() не всегда нужен, т.к. useQuery реактивен к tableOptions.
-  // Но для явного контроля можно его использовать.
-  // refetch();
-}
+const isExporting = ref(false)
 
-// TODO: Реализовать функцию экспорта
-function exportToExcel() {
-  alert('Функционал экспорта в разработке...')
+function loadItems() {}
+
+async function exportToExcel() {
+  isExporting.value = true
+  try {
+    const allItems = await fetchAllReportItems()
+
+    if (!allItems || allItems.length === 0) {
+      alert('Нет данных для экспорта!')
+      return
+    }
+
+    const dataToExport = allItems.map((item: ReportItem) => ({
+      'Станция/Объект': item.station_object,
+      'Зав. №': item.factory_no,
+      Документ: item.doc_name,
+      Номер: item.doc_no,
+      Пользователь: item.user,
+      Дата: new Date(item.created).toLocaleDateString(),
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчет')
+    XLSX.writeFile(workbook, `Отчет_Регистрации_${new Date().toISOString().split('T')[0]}.xlsx`)
+  } catch (error) {
+    console.error('Ошибка при экспорте в Excel:', error)
+    alert('Произошла ошибка при формировании отчета для экспорта.')
+  } finally {
+    isExporting.value = false
+  }
 }
 </script>
