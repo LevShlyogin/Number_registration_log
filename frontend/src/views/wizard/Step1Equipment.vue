@@ -62,7 +62,7 @@
     </v-card>
 
     <!-- Результаты поиска -->
-    <div id="search-results">
+    <div id="search-results" class="mt-6">
       <v-progress-linear v-if="isLoading" indeterminate color="primary"></v-progress-linear>
       <v-alert v-if="isError" type="error" variant="tonal" class="mb-4">
         Ошибка при поиске: {{ (error as Error).message }}
@@ -72,9 +72,33 @@
         <p v-if="results.length > 0" class="text-subtitle-1 mb-2">
           Найдено объектов: {{ results.length }}
         </p>
-        <p v-else class="text-subtitle-1 mb-2 text-grey">Ничего не найдено.</p>
+        <v-sheet
+          v-else
+          class="d-flex align-center justify-center flex-wrap text-center mx-auto pa-6"
+          elevation="0"
+          rounded="lg"
+          border
+          width="100%"
+        >
+          <div>
+            <v-icon icon="mdi-database-search-outline" size="x-large" color="grey"></v-icon>
+            <h2 class="text-h6 mt-4 font-weight-medium">Ничего не найдено</h2>
+            <p class="text-medium-emphasis text-body-2 mt-2">
+              Попробуйте изменить параметры поиска или<br />
+              <v-btn
+                variant="text"
+                color="primary"
+                @click="showCreateForm"
+                size="small"
+                class="mt-1"
+              >
+                создайте новый объект оборудования </v-btn
+              >.
+            </p>
+          </div>
+        </v-sheet>
 
-        <v-list lines="two" select-strategy="single-independent">
+        <v-list v-if="results.length > 0" lines="two" select-strategy="single-independent">
           <v-list-item
             v-for="item in results"
             :key="item.id"
@@ -137,12 +161,15 @@ const formParams = reactive<SearchParams>({})
 const { results, isLoading, isError, error, search } = useEquipmentSearch()
 
 function performSearch() {
-  wizardStore.selectedEquipmentId = null // Сбрасываем выбор
-  search(formParams) // Запускаем поиск с текущими параметрами формы
+  search(formParams)
 }
 
 function selectEquipment(id: number) {
-  wizardStore.setEquipment(id)
+  if (wizardStore.selectedEquipmentId === id) {
+    wizardStore.selectedEquipmentId = null
+  } else {
+    wizardStore.setEquipment(id)
+  }
 }
 
 function showCreateForm() {
@@ -150,10 +177,9 @@ function showCreateForm() {
 }
 
 function onEquipmentCreated(newItem: EquipmentOut) {
-  // После успешного создания:
-  isCreateDialogVisible.value = false // Закрываем диалог
-  selectEquipment(newItem.id) // Сразу выбираем новый элемент
-  goNext() // И сразу переходим на следующий шаг
+  isCreateDialogVisible.value = false
+  wizardStore.setEquipment(newItem.id)
+  goNext()
 }
 
 function goNext() {

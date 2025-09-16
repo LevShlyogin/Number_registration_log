@@ -78,6 +78,7 @@
           prepend-icon="mdi-file-excel-outline"
           @click="exportToExcel"
           :loading="isExporting"
+          :disabled="!report || report.items.length === 0"
         >
           Экспорт в Excel
         </v-btn>
@@ -99,6 +100,25 @@
       >
         <template #[`item.created`]="{ item }">
           {{ new Date(item.created).toLocaleDateString() }}
+        </template>
+
+        <template #no-data>
+          <div class="text-center pa-6">
+            <v-icon
+              icon="mdi-database-off-outline"
+              size="x-large"
+              color="grey-lighten-1"
+              class="mb-4"
+            ></v-icon>
+            <h3 class="text-h6 font-weight-medium">Нет данных для отображения</h3>
+            <p class="text-medium-emphasis text-body-2 mt-2">
+              Попробуйте изменить или сбросить фильтры.
+            </p>
+          </div>
+        </template>
+
+        <template #loading>
+          <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
         </template>
       </v-data-table-server>
     </v-card>
