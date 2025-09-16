@@ -16,16 +16,17 @@
 
         <!-- Навигационные ссылки -->
         <div class="d-none d-md-flex">
-          <v-btn
-            v-for="link in navLinks"
-            :key="link.to"
-            :to="link.to"
-            variant="text"
-            class="nav-link"
-          >
-            <v-icon :icon="link.icon" start></v-icon>
-            {{ link.label }}
-          </v-btn>
+          <template v-for="link in navLinks" :key="link.to">
+            <v-btn
+              v-if="!link.adminOnly || auth.isAdmin"
+              :to="link.to"
+              variant="text"
+              class="nav-link"
+            >
+              <v-icon :icon="link.icon" start></v-icon>
+              {{ link.label }}
+            </v-btn>
+          </template>
         </div>
 
         <!-- Кнопка темы и информация о пользователе -->
@@ -46,19 +47,30 @@
           @click.stop="isNavDrawerOpen = !isNavDrawerOpen"
         ></v-app-bar-nav-icon>
       </v-container>
+
+      <!-- Глобальный индикатор загрузки -->
+      <v-progress-linear
+        v-if="isFetching > 0"
+        indeterminate
+        absolute
+        bottom
+        color="amber"
+        class="global-loader"
+      ></v-progress-linear>
     </v-app-bar>
 
     <!-- Мобильная навигация (Drawer) -->
     <v-navigation-drawer v-model="isNavDrawerOpen" temporary location="right">
       <v-list>
-        <v-list-item
-          v-for="link in navLinks"
-          :key="link.to"
-          :to="link.to"
-          :prepend-icon="link.icon"
-          :title="link.label"
-          @click="isNavDrawerOpen = false"
-        ></v-list-item>
+        <template v-for="link in navLinks" :key="link.to">
+          <v-list-item
+            v-if="!link.adminOnly || auth.isAdmin"
+            :to="link.to"
+            :prepend-icon="link.icon"
+            :title="link.label"
+            @click="isNavDrawerOpen = false"
+          ></v-list-item>
+        </template>
       </v-list>
     </v-navigation-drawer>
 
@@ -83,6 +95,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ThemeToggleButton from '@/components/ThemeToggleButton.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useIsFetching } from '@tanstack/vue-query'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -91,8 +104,10 @@ const isNavDrawerOpen = ref(false)
 const navLinks = [
   { to: '/wizard', label: 'Регистрация', icon: 'mdi-file-document-edit-outline' },
   { to: '/reports', label: 'Отчеты', icon: 'mdi-chart-bar' },
-  { to: '/admin', label: 'Админка', icon: 'mdi-shield-crown-outline' },
+  { to: '/admin', label: 'Админка', icon: 'mdi-shield-crown-outline', adminOnly: true },
 ]
+
+const isFetching = useIsFetching()
 
 onMounted(() => {
   if (!auth.isAuthenticated) {
@@ -118,5 +133,9 @@ onMounted(() => {
   font-size: 0.8rem;
   color: grey;
   line-height: 1.1;
+}
+
+.global-loader {
+  height: 3px;
 }
 </style>
