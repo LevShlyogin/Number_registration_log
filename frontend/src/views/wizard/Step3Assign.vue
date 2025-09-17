@@ -1,107 +1,106 @@
 <template>
   <v-container fluid class="pa-0">
-    <h3 class="text-h6 mb-2">Шаг 3: Назначение номеров</h3>
-    <p class="text-body-1 mb-4 text-grey">
+    <h3 class="text-h6 font-weight-medium mb-2">Шаг 3: Назначение номеров</h3>
+    <p class="text-body-1 mb-6 text-grey">
       Сессия ID: <strong>{{ sessionId }}</strong>
     </p>
 
     <v-row>
-      <!-- Левая колонка: форма назначения -->
       <v-col cols="12" md="5">
-        <v-card variant="outlined">
-          <v-card-title> Форма назначения </v-card-title>
-          <v-card-text>
-            <v-form ref="formRef" @submit.prevent="handleAssign">
-              <p class="text-subtitle-1 mb-2">
-                Свободно номеров: <strong class="text-success">{{ freeNumbers.length }}</strong>
-              </p>
-              <p class="text-subtitle-2 text-grey mb-4">
-                Следующий номер для назначения:
-                <strong v-if="nextFreeNumber" class="text-primary">{{ nextFreeNumber }}</strong>
-                <em v-else>нет</em>
-              </p>
-              <v-text-field
-                v-model="formData.doc_name"
-                label="Наименование документа"
-                :rules="[rules.required]"
-                :disabled="isAssigning || freeNumbers.length === 0"
-                class="mb-2"
-                hide-details="auto"
-              ></v-text-field>
-              <v-textarea
-                v-model="formData.notes"
-                label="Примечание"
-                rows="3"
-                :disabled="isAssigning || freeNumbers.length === 0"
-                hide-details="auto"
-              ></v-textarea>
+        <h4 class="text-subtitle-1 font-weight-medium mb-3">Форма назначения</h4>
+        <v-form ref="formRef" @submit.prevent="handleAssign">
+          <p class="text-body-2 mb-2">
+            Свободно номеров: <strong class="text-success">{{ freeNumbers.length }}</strong>
+          </p>
+          <p class="text-body-2 text-grey mb-4">
+            Следующий номер:
+            <strong v-if="nextFreeNumber" class="text-primary">{{ nextFreeNumber }}</strong>
+            <em v-else>нет</em>
+          </p>
+          <v-text-field
+            v-model="formData.doc_name"
+            label="Наименование документа"
+            :rules="[rules.required]"
+            :disabled="isAssigning || freeNumbers.length === 0"
+            variant="filled"
+            flat
+            hide-details="auto"
+          ></v-text-field>
+          <v-textarea
+            v-model="formData.notes"
+            label="Примечание"
+            rows="3"
+            :disabled="isAssigning || freeNumbers.length === 0"
+            variant="filled"
+            flat
+            hide-details="auto"
+            class="mt-4"
+          ></v-textarea>
 
-              <v-btn
-                type="submit"
-                :loading="isAssigning"
-                :disabled="freeNumbers.length === 0"
-                color="primary"
-                variant="flat"
-                block
-                class="mt-4"
-              >
-                <v-icon start icon="mdi-plus-box"></v-icon>
-                Назначить следующий
-              </v-btn>
+          <v-btn
+            type="submit"
+            :loading="isAssigning"
+            :disabled="freeNumbers.length === 0"
+            color="primary"
+            variant="flat"
+            block
+            class="mt-4"
+          >
+            <v-icon start icon="mdi-plus-box"></v-icon>
+            Назначить следующий
+          </v-btn>
 
-              <v-alert v-if="isErrorAssigning" type="error" variant="tonal" class="mt-4">
-                {{ (errorAssigning as Error).message }}
-              </v-alert>
-            </v-form>
-          </v-card-text>
-        </v-card>
+          <v-alert v-if="isErrorAssigning" type="error" variant="tonal" class="mt-4">
+            {{ (errorAssigning as Error).message }}
+          </v-alert>
+        </v-form>
       </v-col>
 
-      <!-- Правая колонка: списки номеров -->
       <v-col cols="12" md="7">
         <v-row>
-          <!-- Свободные номера -->
           <v-col cols="12" sm="6">
-            <v-card variant="outlined" height="100%">
-              <v-card-title>Свободные номера</v-card-title>
-              <v-card-text>
-                <v-chip v-if="freeNumbers.length === 0" color="grey" size="small"
-                  >Нет свободных номеров</v-chip
-                >
-                <v-chip-group v-else>
-                  <v-chip v-for="num in freeNumbers" :key="num" size="small">
-                    {{ num }}
-                  </v-chip>
-                </v-chip-group>
-              </v-card-text>
-            </v-card>
+            <h4 class="text-subtitle-1 font-weight-medium mb-3">Свободные номера</h4>
+            <v-sheet class="border pa-2" rounded="lg" min-height="150">
+              <v-chip v-if="freeNumbers.length === 0" color="grey-lighten-2" size="small"
+                >Пусто</v-chip
+              >
+              <v-chip-group v-else>
+                <v-chip v-for="num in freeNumbers" :key="num" label size="small">
+                  {{ num }}
+                </v-chip>
+              </v-chip-group>
+            </v-sheet>
           </v-col>
 
-          <!-- Назначенные номера -->
           <v-col cols="12" sm="6">
-            <v-card variant="outlined" height="100%">
-              <v-card-title>Назначенные номера</v-card-title>
-              <v-progress-linear v-if="isLoadingAssigned" indeterminate></v-progress-linear>
-              <v-card-text>
-                <v-list v-if="assignedNumbers && assignedNumbers.length > 0" density="compact">
-                  <v-list-item
-                    v-for="item in assignedNumbers"
-                    :key="item.doc_no"
-                    :title="String(item.doc_no)"
-                    :subtitle="item.doc_name"
-                  ></v-list-item>
-                </v-list>
-                <v-chip v-else color="grey" size="small">Еще нет назначенных номеров</v-chip>
-              </v-card-text>
-            </v-card>
+            <h4 class="text-subtitle-1 font-weight-medium mb-3">Назначенные номера</h4>
+            <v-sheet class="border pa-2" rounded="lg" min-height="150">
+              <v-progress-linear
+                v-if="isLoadingAssigned"
+                indeterminate
+                height="2"
+              ></v-progress-linear>
+              <v-list
+                v-if="assignedNumbers && assignedNumbers.length > 0"
+                density="compact"
+                bg-color="transparent"
+              >
+                <v-list-item v-for="item in assignedNumbers" :key="item.doc_no" class="px-1">
+                  <v-list-item-title class="font-weight-bold">{{ item.doc_no }}</v-list-item-title>
+                  <v-list-item-subtitle>{{ item.doc_name }}</v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+              <v-chip v-else color="grey-lighten-2" size="small">Пусто</v-chip>
+            </v-sheet>
           </v-col>
         </v-row>
       </v-col>
     </v-row>
 
-    <!-- Навигация -->
-    <div class="mt-6 d-flex justify-space-between align-center">
-      <v-btn @click="goBack" variant="outlined">
+    <v-divider class="my-6"></v-divider>
+
+    <div class="d-flex justify-space-between align-center">
+      <v-btn @click="goBack" variant="text">
         <v-icon start icon="mdi-arrow-left"></v-icon>
         Назад
       </v-btn>
@@ -114,7 +113,7 @@
       >
         Все зарезервированные номера назначены.
       </v-alert>
-      <v-btn @click="complete" color="success" size="large">
+      <v-btn @click="complete" color="success" size="large" variant="flat">
         <v-icon start icon="mdi-check-all"></v-icon>
         Завершить
       </v-btn>

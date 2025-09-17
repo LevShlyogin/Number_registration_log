@@ -1,15 +1,27 @@
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col cols="12" md="10" lg="8">
+      <v-col cols="12" md="10" lg="9">
         <v-card flat class="border">
-          <v-card-title class="text-h5 font-weight-bold border-b">
-            <v-icon icon="mdi-file-document-edit-outline" start></v-icon>
+          <v-card-title class="text-h5 font-weight-regular border-b pa-4 d-flex align-center">
+            <v-icon icon="mdi-file-document-edit-outline" start color="grey-darken-1"></v-icon>
             Регистрация номеров документов
           </v-card-title>
-          <v-stepper v-model="currentStep" :items="steps" alt-labels hide-actions flat> </v-stepper>
+
+          <v-stepper
+            v-model="currentStep"
+            :items="steps"
+            alt-labels
+            hide-actions
+            flat
+            bg-color="transparent"
+            class="py-4"
+          >
+          </v-stepper>
+
           <v-divider></v-divider>
-          <v-card-text class="pa-sm-6">
+
+          <v-card-text class="pa-4 pa-sm-6">
             <router-view v-slot="{ Component }">
               <v-fade-transition mode="out-in">
                 <component :is="Component" />
@@ -51,7 +63,7 @@ watch(
   { immediate: true },
 )
 
-onBeforeRouteLeave((to, from) => {
+onBeforeRouteLeave((to) => {
   if (
     !to.path.startsWith('/wizard') &&
     (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)
