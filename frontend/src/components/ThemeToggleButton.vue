@@ -1,7 +1,9 @@
 <template>
   <v-btn icon @click="toggleTheme">
     <v-icon
-      :icon="theme.global.current.value.dark ? 'mdi-white-balance-sunny' : 'mdi-weather-night'"
+      :icon="
+        theme.global.name.value === 'utzDarkTheme' ? 'mdi-white-balance-sunny' : 'mdi-weather-night'
+      "
     ></v-icon>
     <v-tooltip activator="parent" location="bottom"> Переключить тему </v-tooltip>
   </v-btn>
@@ -13,6 +15,7 @@ import { useTheme } from 'vuetify'
 const theme = useTheme()
 
 function toggleTheme() {
-  theme.change(theme.global.current.value.dark ? 'light' : 'dark')
+  theme.global.name.value =
+    theme.global.name.value === 'utzDarkTheme' ? 'utzLightTheme' : 'utzDarkTheme'
 }
 </script>

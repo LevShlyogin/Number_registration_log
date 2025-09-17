@@ -1,39 +1,38 @@
 <template>
   <v-app>
     <!-- AppBar (Header) -->
-    <v-app-bar app flat border>
+    <v-app-bar app flat border color="surface">
       <v-container class="d-flex align-center pa-0" fluid>
         <!-- Лого и Название -->
         <v-toolbar-title class="app-title d-flex align-center" @click="router.push('/')">
           <v-avatar class="mr-3">
-            <v-img src="/logo.png" alt="WSA Logo"></v-img>
-            <!-- Убедись, что logo.png в public/ -->
+            <v-img src="/logo.png" alt="УТЗ Лого"></v-img>
           </v-avatar>
-          <span class="font-weight-bold d-none d-sm-inline">Журнал регистрации УТЗ</span>
+          <span class="font-weight-bold d-none d-sm-inline">Журнал регистрации</span>
         </v-toolbar-title>
 
         <v-spacer></v-spacer>
 
         <!-- Навигационные ссылки -->
         <div class="d-none d-md-flex">
-          <template v-for="link in navLinks" :key="link.to">
-            <v-btn
-              v-if="!link.adminOnly || auth.isAdmin"
-              :to="link.to"
-              variant="text"
-              class="nav-link"
-            >
-              <v-icon :icon="link.icon" start></v-icon>
-              {{ link.label }}
-            </v-btn>
-          </template>
+          <v-btn
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            variant="text"
+            class="nav-link"
+            color="secondary"
+          >
+            <v-icon :icon="link.icon" start></v-icon>
+            {{ link.label }}
+          </v-btn>
         </div>
 
         <!-- Кнопка темы и информация о пользователе -->
         <theme-toggle-button />
         <div v-if="auth.user" class="user-info ml-3 pl-3 border-s">
           <v-avatar size="32" class="mr-2">
-            <v-icon icon="mdi-account-circle"></v-icon>
+            <v-icon icon="mdi-account-circle" color="secondary"></v-icon>
           </v-avatar>
           <div class="d-none d-lg-block">
             <div class="username">{{ auth.user.fullName }}</div>
@@ -54,8 +53,7 @@
         indeterminate
         absolute
         bottom
-        color="amber"
-        class="global-loader"
+        color="accent"
       ></v-progress-linear>
     </v-app-bar>
 
@@ -82,8 +80,8 @@
     </v-main>
 
     <!-- Footer -->
-    <v-footer app class="justify-center" height="40">
-      <div class="text-caption">
+    <v-footer app class="justify-center" height="40" color="surface" border>
+      <div class="text-caption text-disabled">
         © {{ new Date().getFullYear() }} — АО «Уральский турбинный завод»
       </div>
     </v-footer>
@@ -133,9 +131,5 @@ onMounted(() => {
   font-size: 0.8rem;
   color: grey;
   line-height: 1.1;
-}
-
-.global-loader {
-  height: 3px;
 }
 </style>
