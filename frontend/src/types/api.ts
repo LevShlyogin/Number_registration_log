@@ -83,3 +83,57 @@ export interface ReportResponse {
   totalItems: number
   items: ReportItem[]
 }
+
+// Полная информация о документе/оборудовании для админ-панели
+export interface AdminDocumentRow {
+  id: number // ID документа
+  doc_no: number
+  reg_date: string // ISO-строка
+  doc_name: string
+  note: string | null
+  // Данные связанного оборудования
+  eq_id: number // ID оборудования
+  eq_type: string
+  factory_no: string | null
+  order_no: string | null
+  label: string | null
+  station_no: string | null
+  station_object: string | null
+  // Данные пользователя
+  username: string
+}
+
+// Универсальные параметры для поиска/фильтрации (используем и для отчетов, и для админки)
+export interface SearchParams {
+  page?: number
+  itemsPerPage?: number
+  sortBy?: { key: string; order: 'asc' | 'desc' }[]
+  station_object?: string
+  station_no?: string
+  label?: string
+  factory_no?: string
+  order_no?: string
+  username?: string
+  date_from?: string
+  date_to?: string
+  eq_type?: string
+  q?: string // Глобальный поиск
+}
+
+// Ответ от API для админского поиска
+export interface AdminSearchResponse {
+  items: AdminDocumentRow[]
+  totalItems: number
+}
+
+// Полезная нагрузка для обновления документа (из AdminDocumentUpdate в schemas/admin.py)
+export interface DocumentUpdatePayload {
+  doc_name?: string
+  note?: string
+  eq_type?: string
+  station_object?: string
+  station_no?: string
+  factory_no?: string
+  order_no?: string
+  label?: string
+}
