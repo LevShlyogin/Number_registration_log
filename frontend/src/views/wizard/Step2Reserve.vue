@@ -24,6 +24,41 @@
       </v-btn>
     </v-form>
 
+    <v-expand-transition>
+      <div v-if="auth.isAdmin">
+        <v-divider class="my-6"></v-divider>
+        <h4 class="text-subtitle-1 font-weight-medium mb-3">
+          <v-icon start icon="mdi-star-circle-outline" color="amber"></v-icon>
+          Резерв "золотых" номеров (Админ)
+        </h4>
+        <v-card variant="outlined">
+          <v-card-text>
+            <p class="text-body-2 mb-4">
+              Введите один или несколько номеров через запятую для их резервирования.
+            </p>
+            <v-text-field
+              v-model="goldenNumbersInput"
+              label="Номера для резервирования"
+              placeholder="1000, 2000, 3000"
+              variant="filled"
+              flat
+              hide-details="auto"
+            ></v-text-field>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn
+              @click="handleReserveGolden"
+              :loading="isReservingSpecific"
+              color="amber"
+              variant="flat"
+            >
+              Зарезервировать указанные
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </div>
+    </v-expand-transition>
+
     <v-alert v-if="isError" type="error" variant="tonal" class="mt-4">
       Ошибка при резервировании: {{ (error as Error).message }}
     </v-alert>
@@ -71,6 +106,7 @@ import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberReservation } from '@/composables/useNumberReservation'
 import type { ReserveNumbersOut } from '@/types/api'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   equipmentId: string // Приходит из URL
@@ -78,9 +114,12 @@ const props = defineProps<{
 
 const router = useRouter()
 const wizardStore = useWizardStore()
-const { reserve, isLoading, isError, error, result } = useNumberReservation()
+const auth = useAuthStore()
+const { reserve, isLoading, isError, error, result, reserveSpecific, isReservingSpecific } =
+  useNumberReservation()
 
 const quantity = ref(1)
+const goldenNumbersInput = ref('')
 const rules = {
   required: (value: number) => !!value || 'Это поле обязательно.',
   positive: (value: number) => value > 0 || 'Количество должно быть больше нуля.',
@@ -99,6 +138,34 @@ function handleReserve() {
       },
       onError: () => {
         // Очищаем сессию в сторе, если резервирование не удалось
+        wizardStore.currentSessionId = null
+        wizardStore.reservedNumbers = []
+      },
+    },
+  )
+}
+
+function handleReserveGolden() {
+  const numbers = goldenNumbersInput.value
+    .split(',')
+    .map((n) => parseInt(n.trim(), 10))
+    .filter((n) => !isNaN(n))
+
+  if (numbers.length === 0) {
+    alert('Введите корректные номера через запятую.')
+    return
+  }
+
+  reserveSpecific(
+    {
+      equipment_id: Number(props.equipmentId),
+      numbers: numbers,
+    },
+    {
+      onSuccess: (data: ReserveNumbersOut) => {
+        wizardStore.setSession(data.session_id, data.reserved_numbers)
+      },
+      onError: () => {
         wizardStore.currentSessionId = null
         wizardStore.reservedNumbers = []
       },

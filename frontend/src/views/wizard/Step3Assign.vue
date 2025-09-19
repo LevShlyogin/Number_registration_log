@@ -17,15 +17,22 @@
             <strong v-if="nextFreeNumber" class="text-primary">{{ nextFreeNumber }}</strong>
             <em v-else>нет</em>
           </p>
-          <v-text-field
+
+          <v-autocomplete
             v-model="formData.doc_name"
+            v-model:search="suggestions.searchQuery.value"
+            :items="suggestions.suggestions.value || []"
+            :loading="suggestions.isLoading.value"
             label="Наименование документа"
             :rules="[rules.required]"
             :disabled="isAssigning || freeNumbers.length === 0"
             variant="filled"
             flat
             hide-details="auto"
-          ></v-text-field>
+            placeholder="Начните вводить для поиска..."
+            no-filter
+          ></v-autocomplete>
+
           <v-textarea
             v-model="formData.notes"
             label="Примечание"
@@ -126,6 +133,9 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberAssignment } from '@/composables/useNumberAssignment'
+import { useDocNameSuggestions } from '@/composables/useSuggestions'
+
+const suggestions = useDocNameSuggestions()
 
 const props = defineProps<{
   sessionId: string

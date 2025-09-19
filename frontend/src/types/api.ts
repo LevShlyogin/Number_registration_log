@@ -38,6 +38,12 @@ export interface AssignNumberIn {
   notes?: string
 }
 
+// Полезная нагрузка для резервирования конкретных номеров (админ)
+export interface AdminReserveSpecific {
+  equipment_id: number
+  numbers: number[]
+}
+
 // Ответ от сервера после назначения
 export interface AssignNumberOut {
   session_id: string

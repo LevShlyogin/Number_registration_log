@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/vue-query'
-import apiClient from '@/api'
-import type { ReserveNumbersIn, ReserveNumbersOut } from '@/types/api'
+import type { AdminReserveSpecific, ReserveNumbersIn, ReserveNumbersOut } from '@/types/api'
 
 // Асинхронная функция для API-запроса
 const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbersOut> => {
@@ -27,9 +26,28 @@ const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbers
   // --- КОНЕЦ ЗАГЛУШКИ ---
 }
 
+// API-функция для резерва конкретных номеров (админ)
+const reserveSpecificNumbers = async (
+  payload: AdminReserveSpecific,
+): Promise<ReserveNumbersOut> => {
+  console.log('Admin is reserving specific numbers:', payload)
+  await new Promise((resolve) => setTimeout(resolve, 800))
+
+  const mockSessionId = crypto.randomUUID()
+
+  return {
+    session_id: mockSessionId,
+    reserved_numbers: payload.numbers,
+  }
+}
+
 export function useNumberReservation() {
   const { mutate, isPending, isError, error, data } = useMutation({
     mutationFn: reserveNumbers,
+  })
+
+  const { mutate: reserveSpecific, isPending: isReservingSpecific } = useMutation({
+    mutationFn: reserveSpecificNumbers,
   })
 
   return {
@@ -38,5 +56,7 @@ export function useNumberReservation() {
     isError,
     error,
     result: data,
+    reserveSpecific,
+    isReservingSpecific,
   }
 }
