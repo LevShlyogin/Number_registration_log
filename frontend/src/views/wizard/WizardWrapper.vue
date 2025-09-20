@@ -8,16 +8,46 @@
             Регистрация номеров документов
           </v-card-title>
 
-          <v-stepper
-            v-model="currentStep"
-            :items="steps"
-            alt-labels
-            hide-actions
-            flat
-            bg-color="transparent"
-            class="py-4"
-          >
-          </v-stepper>
+          <div class="stepper-container pa-6">
+            <div class="stepper-wrapper">
+              <div
+                v-for="(step, index) in steps"
+                :key="step.value"
+                class="stepper-item"
+                :class="{
+                  'stepper-item--active': currentStepIndex === step.value,
+                  'stepper-item--complete': currentStepIndex > step.value,
+                }"
+              >
+                <!-- Круг с номером -->
+                <div class="stepper-circle">
+                  <transition name="check" mode="out-in">
+                    <v-icon
+                      v-if="currentStepIndex > step.value"
+                      icon="mdi-check"
+                      size="small"
+                      key="check"
+                    />
+                    <span v-else key="number">{{ step.value }}</span>
+                  </transition>
+                </div>
+
+                <!-- Текст -->
+                <div class="stepper-content">
+                  <div class="stepper-title">{{ step.title }}</div>
+                  <div class="stepper-subtitle">{{ step.subtitle }}</div>
+                </div>
+
+                <!-- Линия соединения -->
+                <div v-if="index < steps.length - 1" class="stepper-line">
+                  <div
+                    class="stepper-line-progress"
+                    :style="{ width: getLineProgress(step.value) }"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <v-divider></v-divider>
 
@@ -42,21 +72,33 @@ import { useWizardStore } from '@/stores/wizard'
 const route = useRoute()
 const wizardStore = useWizardStore()
 
-const steps = ['Оборудование', 'Резерв', 'Назначение']
-const currentStep = ref(1)
+const currentStepIndex = ref(1)
+
+const steps = [
+  { value: 1, title: 'Оборудование', subtitle: 'Поиск или создание' },
+  { value: 2, title: 'Резерв', subtitle: 'Получение номеров' },
+  { value: 3, title: 'Назначение', subtitle: 'Привязка к документам' },
+]
+
+const getLineProgress = (stepValue: number) => {
+  if (currentStepIndex.value > stepValue) {
+    return '100%'
+  }
+  return '0%'
+}
 
 watch(
   () => route.name,
   (routeName) => {
     switch (routeName) {
       case 'wizard-equipment':
-        currentStep.value = 1
+        currentStepIndex.value = 1
         break
       case 'wizard-reserve':
-        currentStep.value = 2
+        currentStepIndex.value = 2
         break
       case 'wizard-assign':
-        currentStep.value = 3
+        currentStepIndex.value = 3
         break
     }
   },
@@ -76,3 +118,177 @@ onBeforeRouteLeave((to) => {
   return true
 })
 </script>
+
+<style scoped>
+.stepper-container {
+  background: rgba(var(--v-theme-surface-variant), 0.04);
+  border-radius: 8px;
+}
+
+.stepper-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  max-width: 200px;
+}
+
+/* Круг с номером */
+.stepper-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 12px;
+}
+
+.stepper-item--active .stepper-circle {
+  background: rgb(var(--v-theme-primary));
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.3);
+}
+
+.stepper-item--complete .stepper-circle {
+  background: rgb(var(--v-theme-primary));
+  color: white;
+}
+
+/* Контент */
+.stepper-content {
+  text-align: center;
+}
+
+.stepper-title {
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.87);
+  margin-bottom: 4px;
+  transition: all 0.3s ease;
+}
+
+.stepper-subtitle {
+  font-size: 0.875rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  transition: all 0.3s ease;
+}
+
+.stepper-item--active .stepper-title {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
+}
+
+.stepper-item--active .stepper-subtitle {
+  color: rgba(var(--v-theme-primary), 0.8);
+}
+
+/* Линия соединения */
+.stepper-line {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  z-index: 1;
+}
+
+.stepper-line-progress {
+  height: 100%;
+  background: rgb(var(--v-theme-primary));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.stepper-line-progress::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-primary));
+  opacity: 0;
+  animation: pulse 2s infinite;
+}
+
+.stepper-item--active .stepper-line .stepper-line-progress::after {
+  opacity: 1;
+}
+
+/* Анимации */
+.check-enter-active,
+.check-leave-active {
+  transition: all 0.3s ease;
+}
+
+.check-enter-from {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+
+.check-leave-to {
+  opacity: 0;
+  transform: scale(0.5) rotate(90deg);
+}
+
+@keyframes pulse {
+  0% {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.5);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-50%) scale(2);
+    opacity: 0;
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+  .stepper-wrapper {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .stepper-item {
+    flex-direction: row;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .stepper-circle {
+    margin-bottom: 0;
+    margin-right: 16px;
+  }
+
+  .stepper-content {
+    text-align: left;
+    flex: 1;
+  }
+
+  .stepper-line {
+    display: none;
+  }
+}
+</style>

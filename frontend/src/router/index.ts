@@ -13,6 +13,7 @@ const router = createRouter({
           path: '',
           name: 'home',
           component: () => import('@/views/HomeView.vue'),
+          meta: { title: 'Главная' },
         },
         {
           path: 'wizard',
@@ -24,11 +25,13 @@ const router = createRouter({
               path: 'equipment',
               name: 'wizard-equipment',
               component: () => import('@/views/wizard/Step1Equipment.vue'),
+              meta: { title: 'Поиск оборудования' },
             },
             {
               path: 'reserve/:equipmentId',
               name: 'wizard-reserve',
               component: () => import('@/views/wizard/Step2Reserve.vue'),
+              meta: { title: 'Резерв номеров' },
               props: true,
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
@@ -57,6 +60,7 @@ const router = createRouter({
               path: 'assign/:sessionId',
               name: 'wizard-assign',
               component: () => import('@/views/wizard/Step3Assign.vue'),
+              meta: { title: 'Назначение номеров' },
               props: true,
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
@@ -93,11 +97,13 @@ const router = createRouter({
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/ReportsView.vue'),
+          meta: { title: 'Отчеты' },
         },
         {
           path: 'admin',
           name: 'admin',
           component: () => import('@/views/AdminView.vue'),
+          meta: { title: 'Админка' },
         },
       ],
     },
@@ -111,6 +117,15 @@ router.beforeEach((to, from) => {
       console.log('Leaving wizard, resetting state...')
       wizardStore.reset()
     }
+  }
+})
+
+router.afterEach((to) => {
+  const baseTitle = 'Журнал УТЗ'
+  if (to.meta.title) {
+    document.title = `${to.meta.title} | ${baseTitle}`
+  } else {
+    document.title = baseTitle
   }
 })
 
