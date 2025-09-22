@@ -44,6 +44,8 @@
                     class="stepper-line-progress"
                     :style="{ width: getLineProgress(step.value) }"
                   ></div>
+                  <!-- Пульсирующая точка (видна только на активном шаге) -->
+                  <div class="stepper-line-dot" v-if="currentStepIndex === step.value"></div>
                 </div>
               </div>
             </div>
@@ -82,8 +84,9 @@ const steps = [
 
 const getLineProgress = (stepValue: number) => {
   if (currentStepIndex.value > stepValue) {
-    return '100%'
+    return '100%' // Если шаг пройден, линия заполнена полностью
   }
+  // В остальных случаях (текущий или будущий шаг) линия пустая.
   return '0%'
 }
 
@@ -105,7 +108,7 @@ watch(
   { immediate: true },
 )
 
-onBeforeRouteLeave((to) => {
+onBeforeRouteLeave((to, _from) => {
   if (
     !to.path.startsWith('/wizard') &&
     (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)
@@ -122,12 +125,11 @@ onBeforeRouteLeave((to) => {
 <style scoped>
 .stepper-container {
   background: rgba(var(--v-theme-surface-variant), 0.04);
-  border-radius: 8px;
 }
 
 .stepper-wrapper {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Выравнивание по верху для консистентности */
   justify-content: center;
   position: relative;
 }
@@ -162,7 +164,7 @@ onBeforeRouteLeave((to) => {
   background: rgb(var(--v-theme-primary));
   color: white;
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(var(--v-theme-primary), 0.3);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-primary-rgb), 0.3);
 }
 
 .stepper-item--complete .stepper-circle {
@@ -194,13 +196,13 @@ onBeforeRouteLeave((to) => {
 }
 
 .stepper-item--active .stepper-subtitle {
-  color: rgba(var(--v-theme-primary), 0.8);
+  color: rgba(var(--v-theme-primary-rgb), 0.8);
 }
 
 /* Линия соединения */
 .stepper-line {
   position: absolute;
-  top: 20px;
+  top: 20px; /* Вертикальное выравнивание по центру круга (40px / 2) */
   left: 50%;
   width: 100%;
   height: 2px;
@@ -212,25 +214,21 @@ onBeforeRouteLeave((to) => {
   height: 100%;
   background: rgb(var(--v-theme-primary));
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
 }
 
-.stepper-line-progress::after {
+/* Пульсирующая точка */
+.stepper-line-dot {
   content: '';
   position: absolute;
-  right: 0;
+  left: 50%;
   top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: rgb(var(--v-theme-primary));
-  opacity: 0;
   animation: pulse 2s infinite;
-}
-
-.stepper-item--active .stepper-line .stepper-line-progress::after {
-  opacity: 1;
+  z-index: 3;
 }
 
 /* Анимации */
@@ -251,16 +249,16 @@ onBeforeRouteLeave((to) => {
 
 @keyframes pulse {
   0% {
-    transform: translateY(-50%) scale(1);
-    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-primary-rgb), 0.4);
   }
-  50% {
-    transform: translateY(-50%) scale(1.5);
-    opacity: 0.5;
+  70% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 10px rgba(var(--v-theme-primary-rgb), 0);
   }
   100% {
-    transform: translateY(-50%) scale(2);
-    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-primary-rgb), 0);
   }
 }
 
@@ -269,6 +267,7 @@ onBeforeRouteLeave((to) => {
   .stepper-wrapper {
     flex-direction: column;
     gap: 24px;
+    align-items: flex-start;
   }
 
   .stepper-item {
