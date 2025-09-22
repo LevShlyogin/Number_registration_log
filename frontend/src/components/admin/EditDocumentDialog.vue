@@ -107,6 +107,7 @@
 <script setup lang="ts">
 import { ref, watch, reactive, computed } from 'vue'
 import type { AdminDocumentRow, DocumentUpdatePayload } from '@/types/api'
+import { useNotifier } from '@/composables/useNotifier'
 
 const props = defineProps<{
   document: AdminDocumentRow | null
@@ -115,7 +116,8 @@ const props = defineProps<{
 const emit = defineEmits(['success'])
 const dialog = defineModel<boolean>()
 const formRef = ref<any>(null)
-const isSaving = ref(false) // Для индикатора загрузки
+const isSaving = ref(false)
+const notifier = useNotifier()
 
 // Используем reactive для данных формы
 const formData = reactive<DocumentUpdatePayload>({})
@@ -144,15 +146,15 @@ const rules = {
 }
 
 async function save() {
-  if (!props.document) return
-  const { valid } = await formRef.value.validate()
+  if (!props.document) return;
+  const { valid } = await formRef.value.validate();
   if (valid) {
-    // Здесь будет вызов мутации из `useAdmin`
-    console.log('Saving document...', { id: props.document.id, payload: formData })
-    emit('success', { id: props.document.id, payload: formData })
-    // isSaving.value = true;
-    // await saveDocument({ id: props.document.id, payload: formData });
-    // isSaving.value = false;
+    isSaving.value = true;
+    console.log('Saving document...', { id: props.document.id, payload: formData });
+    await new Promise(resolve => setTimeout(resolve, 800)); // Имитация
+    isSaving.value = false;
+    notifier.success(`Данные для документа №${props.document.doc_no} сохранены!`);
+    emit('success', { id: props.document.id, payload: formData });
   }
 }
 

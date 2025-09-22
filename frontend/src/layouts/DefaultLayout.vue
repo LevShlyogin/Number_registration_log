@@ -79,6 +79,20 @@
       </v-container>
     </v-main>
 
+    <!-- --- ГЛОБАЛЬНЫЙ КОМПОНЕНТ УВЕДОМЛЕНИЙ --- -->
+    <v-snackbar
+      v-model="notifier.show.value"
+      :color="notifier.color.value"
+      :timeout="notifier.timeout.value"
+      location="bottom right"
+      multi-line
+    >
+      {{ notifier.text.value }}
+      <template #actions>
+        <v-btn variant="text" @click="notifier.show.value = false"> Закрыть </v-btn>
+      </template>
+    </v-snackbar>
+
     <!-- Footer -->
     <v-footer app class="justify-center" height="40" color="surface" border>
       <div class="text-caption text-disabled">
@@ -94,10 +108,12 @@ import { useRouter } from 'vue-router'
 import ThemeToggleButton from '@/components/ThemeToggleButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useIsFetching } from '@tanstack/vue-query'
+import { useNotifier } from '@/composables/useNotifier'
 
 const router = useRouter()
 const auth = useAuthStore()
 const isNavDrawerOpen = ref(false)
+const notifier = useNotifier()
 
 const navLinks = [
   { to: '/wizard', label: 'Регистрация', icon: 'mdi-file-document-edit-outline' },

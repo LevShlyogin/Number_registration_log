@@ -197,8 +197,10 @@ function showCreateForm() {
 
 function onEquipmentCreated(newItem: EquipmentOut) {
   isCreateDialogVisible.value = false
+  if (results.value) {
+    results.value.unshift(newItem)
+  }
   wizardStore.setEquipment(newItem.id)
-  goNext()
 }
 
 function goNext() {

@@ -130,6 +130,7 @@ import { ref } from 'vue'
 import { useReports } from '@/composables/useReports'
 import * as XLSX from 'xlsx'
 import type { ReportItem } from '@/types/api'
+import { useNotifier } from '@/composables/useNotifier'
 
 const headers = [
   { title: 'Станция/Объект', key: 'station_object', sortable: true },
@@ -144,6 +145,7 @@ const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchA
   useReports()
 
 const isExporting = ref(false)
+const notifier = useNotifier()
 
 function loadItems() {}
 
@@ -153,7 +155,7 @@ async function exportToExcel() {
     const allItems = await fetchAllReportItems()
 
     if (!allItems || allItems.length === 0) {
-      alert('Нет данных для экспорта!')
+      notifier.warning('Нет данных для экспорта!')
       return
     }
 
@@ -172,7 +174,7 @@ async function exportToExcel() {
     XLSX.writeFile(workbook, `Отчет_Регистрации_${new Date().toISOString().split('T')[0]}.xlsx`)
   } catch (error) {
     console.error('Ошибка при экспорте в Excel:', error)
-    alert('Произошла ошибка при формировании отчета для экспорта.')
+    notifier.error('Произошла ошибка при формировании отчета для экспорта.')
   } finally {
     isExporting.value = false
   }

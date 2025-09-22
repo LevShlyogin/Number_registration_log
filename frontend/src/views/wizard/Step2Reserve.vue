@@ -105,11 +105,12 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberReservation } from '@/composables/useNumberReservation'
+import { useNotifier } from '@/composables/useNotifier'
 import type { ReserveNumbersOut } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
-  equipmentId: string // Приходит из URL
+  equipmentId: string
 }>()
 
 const router = useRouter()
@@ -117,6 +118,7 @@ const wizardStore = useWizardStore()
 const auth = useAuthStore()
 const { reserve, isLoading, isError, error, result, reserveSpecific, isReservingSpecific } =
   useNumberReservation()
+const notifier = useNotifier()
 
 const quantity = ref(1)
 const goldenNumbersInput = ref('')
@@ -126,6 +128,11 @@ const rules = {
 }
 
 function handleReserve() {
+  if (!quantity.value || quantity.value <= 0) {
+    notifier.warning('Пожалуйста, введите корректное количество номеров (больше нуля).')
+    return
+  }
+
   reserve(
     {
       equipment_id: Number(props.equipmentId),
@@ -135,11 +142,12 @@ function handleReserve() {
       onSuccess: (data: ReserveNumbersOut) => {
         // При успехе сохраняем данные в Pinia store
         wizardStore.setSession(data.session_id, data.reserved_numbers)
+        notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)!`) // Уведомление об успехе
       },
-      onError: () => {
-        // Очищаем сессию в сторе, если резервирование не удалось
+      onError: (e) => {
         wizardStore.currentSessionId = null
         wizardStore.reservedNumbers = []
+        notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
       },
     },
   )
@@ -152,7 +160,7 @@ function handleReserveGolden() {
     .filter((n) => !isNaN(n))
 
   if (numbers.length === 0) {
-    alert('Введите корректные номера через запятую.')
+    notifier.warning('Введите корректные номера через запятую.')
     return
   }
 
