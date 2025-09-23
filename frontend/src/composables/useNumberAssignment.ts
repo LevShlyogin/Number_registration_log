@@ -1,17 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import type { AssignNumberIn, AssignNumberOut, AssignedNumber } from '@/types/api'
+import type {
+  AssignNumberIn,
+  AssignNumberOut,
+  AssignedNumber,
+  DocumentUpdatePayload,
+} from '@/types/api'
 
 // --- API-функции ---
 
 const fetchAssignedNumbers = async (sessionId: string): Promise<AssignedNumber[]> => {
-  // --- ЗАГЛУШКА API ---
   console.log('Fetching assigned numbers for session:', sessionId)
   await new Promise((resolve) => setTimeout(resolve, 400))
-  // В будущем:
-  // const { data } = await apiClient.get<AssignedNumber[]>(`/sessions/${sessionId}/assigned`);
-  // return data;
   return []
-  // --- КОНЕЦ ЗАГЛУШКИ ---
+}
+
+const updateAssignedNumber = async ({
+  id,
+  payload,
+}: {
+  id: number
+  payload: Partial<DocumentUpdatePayload>
+}) => {
+  console.log(`Updating assigned number ${id} with:`, payload)
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return { ...payload, doc_no: id }
 }
 
 // Тип для полезной нагрузки мутации
@@ -73,6 +85,21 @@ export function useNumberAssignment(sessionId: string) {
     },
   })
 
+  const { mutate: updateNumber, isPending: isUpdating } = useMutation({
+    mutationFn: updateAssignedNumber,
+    onSuccess: (updatedData) => {
+      queryClient.setQueryData<AssignedNumber[]>(queryKey, (oldData) => {
+        return (
+          oldData?.map((item) =>
+            item.doc_no === updatedData.doc_no
+              ? { ...item, doc_name: updatedData.doc_name! }
+              : item,
+          ) ?? []
+        )
+      })
+    },
+  })
+
   return {
     assignedNumbers,
     isLoadingAssigned,
@@ -81,5 +108,7 @@ export function useNumberAssignment(sessionId: string) {
     assignNumber,
     isAssigning,
     isErrorAssigned,
+    updateNumber,
+    isUpdating,
   }
 }

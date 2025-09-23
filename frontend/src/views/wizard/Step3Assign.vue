@@ -87,25 +87,31 @@
           </v-col>
 
           <v-col cols="12" sm="6">
-            <h4 class="text-subtitle-1 font-weight-medium mb-3">Назначенные номера</h4>
-            <v-sheet class="border pa-2" rounded="lg" min-height="150">
-              <v-progress-linear
-                v-if="isLoadingAssigned"
-                indeterminate
-                height="2"
-              ></v-progress-linear>
-              <v-list
-                v-if="assignedNumbers && assignedNumbers.length > 0"
-                density="compact"
-                bg-color="transparent"
-              >
-                <v-list-item v-for="item in assignedNumbers" :key="item.doc_no" class="px-1">
-                  <v-list-item-title class="font-weight-bold">{{ item.doc_no }}</v-list-item-title>
-                  <v-list-item-subtitle>{{ item.doc_name }}</v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-              <v-chip v-else color="grey-lighten-2" size="small">Пусто</v-chip>
-            </v-sheet>
+            <v-card variant="outlined" height="100%">
+              <v-card-title>Назначенные номера</v-card-title>
+              <v-progress-linear v-if="isLoadingAssigned" indeterminate></v-progress-linear>
+              <v-card-text>
+                <v-list v-if="assignedNumbers && assignedNumbers.length > 0" density="compact">
+                  <v-list-item
+                    v-for="item in assignedNumbers"
+                    :key="item.doc_no"
+                    :title="String(item.doc_no)"
+                    :subtitle="item.doc_name"
+                  >
+                    <!-- --- НОВАЯ КНОПКА РЕДАКТИРОВАНИЯ --- -->
+                    <template #append>
+                      <v-btn
+                        icon="mdi-pencil"
+                        variant="text"
+                        size="x-small"
+                        @click="openEditDialog(item)"
+                      ></v-btn>
+                    </template>
+                  </v-list-item>
+                </v-list>
+                <v-chip v-else color="grey" size="small">Еще нет назначенных номеров</v-chip>
+              </v-card-text>
+            </v-card>
           </v-col>
         </v-row>
       </v-col>
@@ -133,6 +139,12 @@
       </v-btn>
     </div>
   </v-container>
+  <edit-assigned-dialog
+    v-model="isEditDialogOpen"
+    :item="selectedItemForEdit"
+    :loading="isUpdating"
+    @save="handleUpdate"
+  />
 </template>
 
 <script setup lang="ts">
@@ -141,8 +153,12 @@ import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberAssignment } from '@/composables/useNumberAssignment'
 import { useDocNameSuggestions } from '@/composables/useSuggestions'
+import EditAssignedDialog from '@/components/wizard/EditAssignedDialog.vue' // Импорт
+import type { AssignedNumber, DocumentUpdatePayload } from '@/types/api'
+import { useNotifier } from '@/composables/useNotifier'
 
 const suggestions = useDocNameSuggestions()
+const notifier = useNotifier()
 
 const props = defineProps<{
   sessionId: string
@@ -157,7 +173,12 @@ const {
   errorAssigning,
   assignNumber,
   isAssigning,
+  updateNumber,
+  isUpdating,
 } = useNumberAssignment(props.sessionId)
+
+const isEditDialogOpen = ref(false)
+const selectedItemForEdit = ref<AssignedNumber | null>(null)
 
 const formRef = ref<any>(null)
 const formData = reactive({
@@ -198,6 +219,26 @@ async function handleAssign() {
       },
     )
   }
+}
+
+function openEditDialog(item: AssignedNumber) {
+  selectedItemForEdit.value = item
+  isEditDialogOpen.value = true
+}
+
+function handleUpdate({ id, payload }: { id: number; payload: Partial<DocumentUpdatePayload> }) {
+  updateNumber(
+    { id, payload },
+    {
+      onSuccess: () => {
+        isEditDialogOpen.value = false // Закрываем диалог
+        notifier.success('Запись успешно обновлена!')
+      },
+      onError: (e) => {
+        notifier.error(`Ошибка обновления: ${(e as Error).message}`)
+      },
+    },
+  )
 }
 
 function goBack() {
