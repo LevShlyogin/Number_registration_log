@@ -126,11 +126,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useReports } from '@/composables/useReports'
 import * as XLSX from 'xlsx'
 import type { ReportItem } from '@/types/api'
 import { useNotifier } from '@/composables/useNotifier'
+import { useAuthStore } from '@/stores/auth'
 
 const headers = [
   { title: 'Станция/Объект', key: 'station_object', sortable: true },
@@ -141,11 +142,27 @@ const headers = [
   { title: 'Дата', key: 'created', sortable: true },
 ]
 
-const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =
-  useReports()
-
+const lastSessionId = history.state.lastSessionId as string | undefined
+const authStore = useAuthStore()
 const isExporting = ref(false)
 const notifier = useNotifier()
+
+let initialFilters = {}
+if (lastSessionId) {
+  // Если пришли из визарда, фильтруем по ID сессии
+  initialFilters = { session_id: lastSessionId }
+} else if (authStore.user) {
+  // Иначе фильтруем по имени текущего пользователя
+  initialFilters = { username: authStore.user.login }
+}
+const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =
+  useReports(initialFilters)
+
+onMounted(() => {
+  if (history.state.lastSessionId) {
+    history.replaceState({ ...history.state, lastSessionId: undefined }, '')
+  }
+})
 
 function loadItems() {}
 

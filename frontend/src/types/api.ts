@@ -120,6 +120,7 @@ export interface SearchParams {
   factory_no?: string
   order_no?: string
   username?: string
+  session_id?: string
   date_from?: string
   date_to?: string
   eq_type?: string

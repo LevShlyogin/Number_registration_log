@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
-import apiClient from '@/api'
 import type { AssignNumberIn, AssignNumberOut, AssignedNumber } from '@/types/api'
 
 // --- API-функции ---

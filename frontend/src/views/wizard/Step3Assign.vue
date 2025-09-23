@@ -35,9 +35,7 @@
           >
             <template #no-data>
               <v-list-item>
-                <v-list-item-title>
-                  Совпадений не найдено
-                </v-list-item-title>
+                <v-list-item-title> Совпадений не найдено </v-list-item-title>
               </v-list-item>
             </template>
           </v-combobox>
@@ -207,7 +205,11 @@ function goBack() {
 }
 
 function complete() {
+  const sessionIdToReport = wizardStore.currentSessionId
   wizardStore.reset()
-  router.push({ name: 'reports' })
+  router.push({
+    name: 'reports',
+    state: { lastSessionId: sessionIdToReport },
+  })
 }
 </script>
