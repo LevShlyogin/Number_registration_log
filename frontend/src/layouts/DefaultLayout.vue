@@ -2,7 +2,7 @@
   <v-app>
     <!-- AppBar (Header) -->
     <v-app-bar app flat border color="surface">
-      <v-container class="d-flex align-center pa-0" fluid>
+      <v-container class="d-flex align-center px-4 px-sm-6" fluid>
         <!-- Лого и Название -->
         <v-toolbar-title class="app-title d-flex align-center" @click="router.push('/')">
           <v-avatar class="mr-3">

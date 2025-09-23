@@ -44,8 +44,6 @@
                     class="stepper-line-progress"
                     :style="{ width: getLineProgress(step.value) }"
                   ></div>
-                  <!-- Пульсирующая точка (видна только на активном шаге) -->
-                  <div class="stepper-line-dot" v-if="currentStepIndex === step.value"></div>
                 </div>
               </div>
             </div>
@@ -108,7 +106,7 @@ watch(
   { immediate: true },
 )
 
-onBeforeRouteLeave((to, _from) => {
+onBeforeRouteLeave((to) => {
   if (
     !to.path.startsWith('/wizard') &&
     (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession)
@@ -151,18 +149,20 @@ onBeforeRouteLeave((to, _from) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(var(--v-theme-on-surface), 0.08);
-  color: rgba(var(--v-theme-on-surface), 0.6);
   font-weight: 500;
   position: relative;
   z-index: 2;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 12px;
+  background: rgb(var(--v-theme-surface));
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.38);
 }
 
 .stepper-item--active .stepper-circle {
   background: rgb(var(--v-theme-primary));
   color: white;
+  border-color: rgb(var(--v-theme-primary));
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(var(--v-theme-primary-rgb), 0.3);
 }
@@ -170,6 +170,7 @@ onBeforeRouteLeave((to, _from) => {
 .stepper-item--complete .stepper-circle {
   background: rgb(var(--v-theme-primary));
   color: white;
+  border-color: rgb(var(--v-theme-primary));
 }
 
 /* Контент */
@@ -214,37 +215,6 @@ onBeforeRouteLeave((to, _from) => {
   height: 100%;
   background: rgb(var(--v-theme-primary));
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Пульсирующая точка */
-.stepper-line-dot {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgb(var(--v-theme-primary));
-  animation: pulse 2s infinite;
-  z-index: 3;
-}
-
-/* Анимации */
-.check-enter-active,
-.check-leave-active {
-  transition: all 0.3s ease;
-}
-
-.check-enter-from {
-  opacity: 0;
-  transform: scale(0.5) rotate(-90deg);
-}
-
-.check-leave-to {
-  opacity: 0;
-  transform: scale(0.5) rotate(90deg);
 }
 
 @keyframes pulse {
