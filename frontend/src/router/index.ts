@@ -20,18 +20,19 @@ const router = createRouter({
           name: 'wizard',
           component: () => import('@/views/wizard/WizardWrapper.vue'),
           redirect: '/wizard/equipment',
+          meta: { title: 'Мастер регистрации' },
           children: [
             {
               path: 'equipment',
               name: 'wizard-equipment',
               component: () => import('@/views/wizard/Step1Equipment.vue'),
-              meta: { title: 'Поиск оборудования' },
+              meta: { title: 'Оборудование' },
             },
             {
               path: 'reserve/:equipmentId',
               name: 'wizard-reserve',
               component: () => import('@/views/wizard/Step2Reserve.vue'),
-              meta: { title: 'Резерв номеров' },
+              meta: { title: 'Резерв' },
               props: true,
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
@@ -60,7 +61,7 @@ const router = createRouter({
               path: 'assign/:sessionId',
               name: 'wizard-assign',
               component: () => import('@/views/wizard/Step3Assign.vue'),
-              meta: { title: 'Назначение номеров' },
+              meta: { title: 'Назначение' },
               props: true,
               beforeEnter: (to, from) => {
                 const wizardStore = useWizardStore()
@@ -122,8 +123,13 @@ router.beforeEach((to, from) => {
 
 router.afterEach((to) => {
   const baseTitle = 'Журнал УТЗ'
-  if (to.meta.title) {
-    document.title = `${to.meta.title} | ${baseTitle}`
+  const mostSpecificTitle = to.matched
+    .slice()
+    .reverse()
+    .find((record) => record.meta.title)
+
+  if (mostSpecificTitle && mostSpecificTitle.meta.title) {
+    document.title = `${mostSpecificTitle.meta.title} | ${baseTitle}`
   } else {
     document.title = baseTitle
   }
