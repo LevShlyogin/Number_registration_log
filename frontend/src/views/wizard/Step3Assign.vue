@@ -18,7 +18,7 @@
             <em v-else>нет</em>
           </p>
 
-          <v-autocomplete
+          <v-combobox
             v-model="formData.doc_name"
             v-model:search="suggestions.searchQuery.value"
             :items="suggestions.suggestions.value || []"
@@ -29,9 +29,18 @@
             variant="filled"
             flat
             hide-details="auto"
-            placeholder="Начните вводить для поиска..."
+            placeholder="Начните вводить для поиска или введите новое"
             no-filter
-          ></v-autocomplete>
+            clearable
+          >
+            <template #no-data>
+              <v-list-item>
+                <v-list-item-title>
+                  Совпадений не найдено
+                </v-list-item-title>
+              </v-list-item>
+            </template>
+          </v-combobox>
 
           <v-textarea
             v-model="formData.notes"
@@ -158,7 +167,7 @@ const formData = reactive({
   notes: '',
 })
 const rules = {
-  required: (value: string) => !!value || 'Это поле обязательно.',
+  required: (value: string) => (!!value && value.trim().length > 0) || 'Это поле обязательно.',
 }
 
 const freeNumbers = computed(() => {
@@ -178,7 +187,7 @@ async function handleAssign() {
       {
         data: {
           session_id: wizardStore.currentSessionId,
-          doc_name: formData.doc_name,
+          doc_name: formData.doc_name.trim(),
           notes: formData.notes,
         },
         nextNumberToAssign: nextFreeNumber.value,
@@ -186,6 +195,7 @@ async function handleAssign() {
       {
         onSuccess: () => {
           formRef.value.reset()
+          suggestions.searchQuery.value = ''
         },
       },
     )
