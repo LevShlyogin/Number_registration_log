@@ -6,11 +6,30 @@
         <h3 class="text-h6 font-weight-medium mb-0">Шаг 3: Назначение номеров</h3>
 
         <div class="d-flex flex-wrap gap-2 align-center">
-          <v-chip v-if="selectedFreeNumber !== null" color="info" variant="tonal" size="small">
-            Выбран: <strong class="ml-1">{{ selectedFreeNumber }}</strong>
+          <v-chip
+            color="success"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-checkbox-blank-circle-outline"
+          >
+            Свободно: <strong class="ml-1">{{ freeNumbers.length }}</strong>
           </v-chip>
-          <v-chip v-else-if="nextFreeNumber" color="info" variant="tonal" size="small">
-            Следующий: <strong class="ml-1">{{ nextFreeNumber }}</strong>
+          <v-chip
+            color="primary"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-checkbox-marked-circle-outline"
+          >
+            Назначено: <strong class="ml-1">{{ assignedCount }}</strong>
+          </v-chip>
+          <v-chip
+            v-if="numberToAssign"
+            color="info"
+            variant="tonal"
+            size="small"
+            prepend-icon="mdi-target-account"
+          >
+            К назначению: <strong class="ml-1">{{ numberToAssign }}</strong>
           </v-chip>
           <v-chip v-else color="grey" variant="tonal" size="small">Нет свободных</v-chip>
         </div>
@@ -20,14 +39,14 @@
     <v-row class="mt-2">
       <!-- Левая колонка: форма назначения -->
       <v-col cols="12" md="5">
-        <v-card variant="outlined" class="rounded-lg" :elevation="0">
+        <v-card flat class="border rounded-lg">
           <v-card-title class="text-subtitle-1 py-3"> Форма назначения </v-card-title>
           <v-divider></v-divider>
 
           <v-card-text class="pt-4">
             <v-form ref="formRef" @submit.prevent="handleAssign">
               <v-alert
-                v-if="!nextFreeNumber && selectedFreeNumber === null"
+                v-if="freeNumbers.length === 0"
                 type="warning"
                 variant="tonal"
                 density="comfortable"
@@ -45,33 +64,25 @@
                 :rules="[rules.required]"
                 :disabled="isAssigning || freeNumbers.length === 0"
                 variant="filled"
+                flat
                 clearable
                 hide-details="auto"
                 placeholder="Начните вводить для поиска или введите новое"
                 no-filter
                 density="comfortable"
                 class="mb-4"
-                prepend-inner-icon="mdi-text-box"
-              >
-                <template #no-data>
-                  <v-list-item>
-                    <v-list-item-title class="text-caption">
-                      Ничего не найдено — можно использовать новое наименование.
-                    </v-list-item-title>
-                  </v-list-item>
-                </template>
-              </v-combobox>
+              />
 
               <v-textarea
                 v-model="formData.notes"
                 label="Примечание"
                 rows="3"
-                :disabled="isAssigning || (freeNumbers.length === 0 && selectedFreeNumber === null)"
+                :disabled="isAssigning || freeNumbers.length === 0"
                 variant="filled"
+                flat
                 hide-details="auto"
                 density="comfortable"
                 auto-grow
-                prepend-inner-icon="mdi-note-text"
                 class="mb-4"
               />
 
@@ -79,72 +90,28 @@
                 v-model="selectedFreeNumber"
                 :items="freeNumbers"
                 :disabled="isAssigning || freeNumbers.length === 0"
-                :return-object="false"
-                label="Выбор свободного номера"
-                placeholder="Начните вводить номер..."
+                label="Выбрать конкретный свободный номер"
+                placeholder="Необязательно"
                 clearable
                 variant="outlined"
                 hide-details="auto"
                 density="comfortable"
-                prepend-inner-icon="mdi-counter"
                 class="mb-2"
               />
 
-              <v-sheet
-                v-if="selectedFreeNumber !== null || nextFreeNumber !== null"
-                color="blue-lighten-5"
-                class="d-flex align-center justify-space-between pa-3 rounded-lg mt-2"
+              <v-btn
+                type="submit"
+                :loading="isAssigning"
+                :disabled="!formData.doc_name || !numberToAssign"
+                color="primary"
+                variant="flat"
+                block
+                size="large"
+                class="mt-4"
               >
-                <div class="d-flex align-center">
-                  <v-icon color="primary" class="mr-2">mdi-counter</v-icon>
-                  <div class="text-body-2">
-                    <template v-if="selectedFreeNumber !== null">
-                      Выбран номер:
-                      <strong class="text-primary">{{ selectedFreeNumber }}</strong>
-                    </template>
-                    <template v-else>
-                      Будет назначен номер:
-                      <strong class="text-primary">{{ nextFreeNumber }}</strong>
-                    </template>
-                  </div>
-                </div>
-                <div class="d-flex align-center">
-                  <v-btn
-                    v-if="selectedFreeNumber !== null"
-                    size="small"
-                    variant="text"
-                    @click="clearSelected"
-                  >
-                    ОТМЕНА
-                  </v-btn>
-                </div>
-              </v-sheet>
-
-              <div class="d-flex gap-2 mt-4">
-                <v-btn
-                  type="submit"
-                  :loading="isAssigning"
-                  :disabled="
-                    !formData.doc_name || (selectedFreeNumber === null && nextFreeNumber === null)
-                  "
-                  color="primary"
-                  variant="flat"
-                  block
-                >
-                  <v-icon start icon="mdi-plus-box"></v-icon>
-                  {{ selectedFreeNumber !== null ? 'Назначить выбранный' : 'Назначить следующий' }}
-                </v-btn>
-
-                <v-btn
-                  type="button"
-                  color="default"
-                  variant="text"
-                  :disabled="isAssigning"
-                  @click="resetForm"
-                >
-                  Сбросить
-                </v-btn>
-              </div>
+                <v-icon start icon="mdi-plus-box"></v-icon>
+                Назначить номер {{ numberToAssign }}
+              </v-btn>
             </v-form>
           </v-card-text>
         </v-card>
@@ -152,82 +119,43 @@
 
       <!-- Правая колонка: списки номеров -->
       <v-col cols="12" md="7">
-        <v-card variant="outlined" class="rounded-lg" :elevation="0">
+        <v-card flat class="border rounded-lg">
           <v-tabs v-model="rightTab" density="comfortable" class="px-2">
-            <v-tab value="free">
-              <v-icon start size="18">mdi-checkbox-blank-circle-outline</v-icon>
-              Свободные
-              <v-chip size="x-small" class="ml-2" color="success" variant="tonal">
-                {{ freeNumbers.length }}
-              </v-chip>
-            </v-tab>
-            <v-tab value="assigned">
-              <v-icon start size="18">mdi-checkbox-marked-circle</v-icon>
-              Назначенные
-              <v-chip size="x-small" class="ml-2" color="primary" variant="tonal">
-                {{ assignedCount }}
-              </v-chip>
-            </v-tab>
+            <v-tab value="free">Свободные</v-tab>
+            <v-tab value="assigned">Назначенные</v-tab>
           </v-tabs>
-
           <v-divider></v-divider>
 
           <v-window v-model="rightTab">
             <!-- Свободные номера -->
             <v-window-item value="free">
               <v-card-text>
-                <div class="d-flex align-center gap-2 mb-2">
-                  <v-text-field
-                    v-model="searchFree"
-                    placeholder="Фильтр по свободным номерам..."
-                    prepend-inner-icon="mdi-magnify"
-                    density="comfortable"
-                    variant="outlined"
-                    hide-details
-                    clearable
-                    class="flex-1-1"
-                  />
-                  <v-btn
-                    v-if="selectedFreeNumber !== null"
-                    size="small"
-                    variant="text"
-                    @click="clearSelected"
-                  >
-                    Снять выбор
-                  </v-btn>
-                </div>
-
-                <v-sheet class="rounded-lg border pa-3" min-height="220">
-                  <div
-                    v-if="filteredFreeNumbers.length === 0"
-                    class="d-flex justify-center align-center"
-                    style="min-height: 200px"
-                  >
+                <v-text-field
+                  v-model="searchFree"
+                  placeholder="Фильтр по свободным номерам..."
+                  prepend-inner-icon="mdi-magnify"
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  clearable
+                  class="mb-2"
+                />
+                <v-sheet class="rounded-lg border pa-3 free-grid" min-height="220">
+                  <div v-if="filteredFreeNumbers.length === 0" class="empty-state">
                     <v-chip color="grey-lighten-2" size="small">Пусто</v-chip>
                   </div>
-
-                  <div v-else>
-                    <v-chip-group
-                      v-model="selectedFreeNumber"
-                      class="free-grid"
-                      selected-class="selected-chip"
-                      :multiple="false"
-                      :mandatory="false"
-                    >
-                      <v-chip
-                        v-for="num in filteredFreeNumbers"
-                        :key="num"
-                        :value="num"
-                        label
-                        size="small"
-                        variant="tonal"
-                        class="mb-2"
-                        :aria-pressed="selectedFreeNumber === num"
-                      >
-                        {{ num }}
-                      </v-chip>
-                    </v-chip-group>
-                  </div>
+                  <v-chip
+                    v-for="num in filteredFreeNumbers"
+                    :key="num"
+                    label
+                    size="small"
+                    :variant="selectedFreeNumber === num ? 'flat' : 'tonal'"
+                    :color="selectedFreeNumber === num ? 'primary' : 'default'"
+                    @click="toggleSelectFreeNumber(num)"
+                    class="ma-1"
+                  >
+                    {{ num }}
+                  </v-chip>
                 </v-sheet>
               </v-card-text>
             </v-window-item>
@@ -235,57 +163,41 @@
             <!-- Назначенные номера -->
             <v-window-item value="assigned">
               <v-card-text>
-                <div class="d-flex align-center justify-space-between mb-2">
-                  <v-text-field
-                    v-model="searchAssigned"
-                    placeholder="Поиск по номеру или документу..."
-                    prepend-inner-icon="mdi-magnify"
-                    density="comfortable"
-                    variant="outlined"
-                    hide-details
-                    clearable
-                    class="flex-1-1"
-                  />
-                </div>
-
-                <v-progress-linear
-                  v-if="isLoadingAssigned"
-                  indeterminate
-                  height="2"
-                  color="primary"
+                <v-text-field
+                  v-model="searchAssigned"
+                  placeholder="Поиск по номеру или документу..."
+                  prepend-inner-icon="mdi-magnify"
+                  density="comfortable"
+                  variant="outlined"
+                  hide-details
+                  clearable
                   class="mb-2"
                 />
-
-                <v-data-table
-                  :headers="assignedHeaders"
-                  :items="filteredAssigned"
-                  :items-per-page="10"
-                  item-key="doc_no"
-                  density="compact"
-                  class="rounded-lg"
-                  no-data-text="Пока пусто"
-                  :loading="isLoadingAssigned"
-                >
-                  <template #[`item.doc_no`]="{ item }">
-                    <span class="font-weight-bold">{{ item.doc_no }}</span>
-                  </template>
-
-                  <template #[`item.notes`]="{ item }">
-                    <span class="text-medium-emphasis">{{ item.notes ?? '—' }}</span>
-                  </template>
-
-                  <template #[`item.actions`]="{ item }">
-                    <v-btn
-                      icon="mdi-pencil"
-                      variant="text"
-                      size="small"
-                      @click="openEditDialog(item)"
-                      :aria-label="'Редактировать ' + item.doc_no"
-                    />
-                  </template>
-
-                  <template #bottom></template>
-                </v-data-table>
+                <v-sheet class="assigned-table-container border rounded-lg" min-height="220">
+                  <v-data-table
+                    :headers="assignedHeaders"
+                    :items="filteredAssigned"
+                    :items-per-page="-1"
+                    item-key="doc_no"
+                    density="compact"
+                    :no-data-text="'Пока пусто'"
+                    :loading="isLoadingAssigned"
+                    fixed-header
+                  >
+                    <template #[`item.notes`]="{ item }">
+                      <span class="text-medium-emphasis">{{ item.notes ?? '—' }}</span>
+                    </template>
+                    <template #[`item.actions`]="{ item }">
+                      <v-btn
+                        icon="mdi-pencil"
+                        variant="text"
+                        size="x-small"
+                        @click="openEditDialog(item)"
+                      />
+                    </template>
+                    <template #bottom></template>
+                  </v-data-table>
+                </v-sheet>
               </v-card-text>
             </v-window-item>
           </v-window>
@@ -349,6 +261,7 @@ const router = useRouter()
 const wizardStore = useWizardStore()
 const { assignedNumbers, isLoadingAssigned, assignNumber, isAssigning, updateNumber, isUpdating } =
   useNumberAssignment(props.sessionId)
+const numberToAssign = computed(() => selectedFreeNumber.value ?? nextFreeNumber.value)
 
 const isEditDialogOpen = ref(false)
 const selectedItemForEdit = ref<AssignedNumber | null>(null)
@@ -446,6 +359,14 @@ function resetForm() {
   formRef.value?.reset()
   formData.doc_name = ''
   formData.notes = ''
+}
+
+function toggleSelectFreeNumber(num: number) {
+  if (selectedFreeNumber.value === num) {
+    selectedFreeNumber.value = null
+  } else {
+    selectedFreeNumber.value = num
+  }
 }
 
 function clearSelected() {
