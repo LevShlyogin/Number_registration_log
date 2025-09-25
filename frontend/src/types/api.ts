@@ -49,6 +49,7 @@ export interface AssignNumberOut {
   session_id: string
   doc_no: number
   doc_name: string
+  notes?: string | null
   created: string // ISO-строка даты
   user: string
 }
@@ -57,6 +58,7 @@ export interface AssignNumberOut {
 export interface AssignedNumber {
   doc_no: number
   doc_name: string
+  notes?: string | null
 }
 
 // Структура одной строки в отчете

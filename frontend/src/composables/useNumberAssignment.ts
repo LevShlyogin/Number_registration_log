@@ -44,6 +44,7 @@ const assignNextNumber = async (payload: AssignNumberPayload): Promise<AssignNum
     session_id: data.session_id,
     doc_no: nextNumberToAssign,
     doc_name: data.doc_name,
+    notes: payload.data.notes,
     created: new Date().toISOString(),
     user: 'yuaalekseeva',
   }
@@ -79,6 +80,7 @@ export function useNumberAssignment(sessionId: string) {
         const newEntry: AssignedNumber = {
           doc_no: newlyAssignedNumber.doc_no,
           doc_name: newlyAssignedNumber.doc_name,
+          notes: (newlyAssignedNumber as any).notes,
         }
         return oldData ? [...oldData, newEntry] : [newEntry]
       })
