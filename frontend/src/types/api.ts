@@ -59,25 +59,14 @@ export interface AssignedNumber {
   doc_name: string
 }
 
-// Параметры для запроса отчета
-export interface ReportParams {
-  page: number
-  itemsPerPage: number
-  sortBy: { key: string; order: 'asc' | 'desc' }[]
-  // Поля фильтров
-  station_object?: string
-  factory_no?: string
-  date_from?: string // YYYY-MM-DD
-  date_to?: string // YYYY-MM-DD
-  q?: string // Глобальный поиск
-}
-
 // Структура одной строки в отчете
 export interface ReportItem {
   id: number
   eq_type: string
   station_object: string
   factory_no: string | null
+  station_no: string | null
+  label: string | null
   doc_name: string
   doc_no: number
   user: string
@@ -121,6 +110,7 @@ export interface SearchParams {
   order_no?: string
   username?: string
   session_id?: string
+  doc_name?: string
   date_from?: string
   date_to?: string
   eq_type?: string

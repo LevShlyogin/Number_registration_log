@@ -1,13 +1,12 @@
-import { computed, reactive, ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { ref, reactive, computed } from 'vue'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type {
-  AdminDocumentRow,
-  AdminSearchResponse,
-  DocumentUpdatePayload,
   SearchParams,
+  AdminSearchResponse,
+  AdminDocumentRow,
+  DocumentUpdatePayload,
 } from '@/types/api'
 
-// --- API-функции (Заглушки) ---
 const mockAdminData: AdminDocumentRow[] = Array.from({ length: 57 }, (_, i) => ({
   id: i + 1,
   doc_no: 1001 + i,
@@ -26,8 +25,7 @@ const mockAdminData: AdminDocumentRow[] = Array.from({ length: 57 }, (_, i) => (
 
 const fetchAdminDocuments = async (params: SearchParams): Promise<AdminSearchResponse> => {
   console.log('Fetching admin documents with params:', params)
-  await new Promise((resolve) => setTimeout(resolve, 800))
-  // const { data } = await apiClient.get<AdminSearchResponse>('/admin-dashboard/documents', { params });
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   return { items: mockAdminData.slice(0, params.itemsPerPage), totalItems: mockAdminData.length }
 }
 
@@ -40,13 +38,12 @@ const updateDocument = async ({
 }): Promise<AdminDocumentRow> => {
   console.log(`Updating document ${id} with payload:`, payload)
   await new Promise((resolve) => setTimeout(resolve, 600))
-  // const { data } = await apiClient.patch<AdminDocumentRow>(`/documents/${id}`, payload);
-  // return data;
   const existing = mockAdminData.find((d) => d.id === id)
   if (!existing) throw new Error('Document not found')
-  // Возвращаем обновленные данные
-
-  return { ...existing, ...payload }
+  const updated = { ...existing, ...payload }
+  const index = mockAdminData.findIndex((d) => d.id === id)
+  if (index !== -1) mockAdminData[index] = updated
+  return updated
 }
 
 export function useAdmin() {
@@ -58,6 +55,7 @@ export function useAdmin() {
     itemsPerPage: 10,
     sortBy: [],
   })
+
   const filters = reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>({
     station_object: '',
     factory_no: '',
@@ -65,9 +63,11 @@ export function useAdmin() {
     label: '',
     order_no: '',
     username: '',
+    doc_name: '',
     date_from: '',
     date_to: '',
     eq_type: '',
+    q: '',
   })
 
   const queryParams = computed(() => ({
@@ -83,7 +83,6 @@ export function useAdmin() {
   const { mutate: saveDocument, isPending: isSaving } = useMutation({
     mutationFn: updateDocument,
     onSuccess: (updatedDocument) => {
-      // Оптимистичное обновление таблицы без перезагрузки
       queryClient.setQueryData<AdminSearchResponse>([...queryKey, queryParams], (oldData) => {
         if (!oldData) return oldData
         return {
@@ -93,10 +92,16 @@ export function useAdmin() {
           ),
         }
       })
-      // Или можно просто инвалидировать запрос, чтобы перезагрузить
-      // queryClient.invalidateQueries({ queryKey });
     },
   })
+
+  const fetchAllAdminItemsForExport = async (): Promise<AdminDocumentRow[]> => {
+    const exportParams = { ...filters }
+    console.log('Fetching ALL admin documents for export with filters:', exportParams)
+
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    return mockAdminData
+  }
 
   return {
     documents: data,
@@ -107,5 +112,6 @@ export function useAdmin() {
     filters,
     saveDocument,
     isSaving,
+    fetchAllAdminItemsForExport,
   }
 }

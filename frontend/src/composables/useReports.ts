@@ -2,37 +2,37 @@ import { computed, reactive, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ReportItem, ReportResponse, SearchParams } from '@/types/api'
 
+// API-функция для получения ОДНОЙ страницы отчета (заглушка)
 const fetchReport = async (params: SearchParams): Promise<ReportResponse> => {
   console.log('Fetching report with params:', params)
   await new Promise((resolve) => setTimeout(resolve, 1000))
 
-  // Генерируем mock-данные
   const totalItems = 123
   const items: ReportItem[] = Array.from({ length: params.itemsPerPage || 10 }, (_, i) => {
     const page = params.page || 1
     const itemsPerPage = params.itemsPerPage || 10
     const id = (page - 1) * itemsPerPage + i + 1
-
     if (id > totalItems) return null
+
     return {
       id,
       eq_type: 'Турбина',
       station_object: `Мосэнерго ТЭЦ-${Math.floor(Math.random() * 20) + 1}`,
       factory_no: String(Math.floor(10000 + Math.random() * 90000)),
+      station_no: `ст.${id}`, // Добавлено
+      label: `марк.${id}`, // Добавлено
       doc_name: `Чертеж ${params.q || ''} ${id}`,
       doc_no: 1000 + id,
-      // Если в параметрах есть username, используем его для всех строк
       user: params.username || 'yuaalekseeva',
       created: new Date(Date.now() - i * 1000 * 3600 * 24).toISOString(),
     }
   }).filter(Boolean) as ReportItem[]
 
+  // Имитация фильтрации
   if (params.session_id) {
-    console.log(`Filtering mock data by session_id: ${params.session_id}`)
     return { totalItems: 3, items: items.slice(0, 3) }
   }
   if (params.username) {
-    console.log(`Filtering mock data by username: ${params.username}`)
     return { totalItems, items }
   }
 
@@ -47,12 +47,17 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
   })
 
   const filters = reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>({
-    session_id: undefined,
-    username: undefined,
+    session_id: initialFilters.session_id,
+    username: initialFilters.username,
     station_object: '',
     factory_no: '',
     date_from: '',
     date_to: '',
+    doc_name: '',
+    label: '',
+    order_no: '',
+    station_no: '',
+    eq_type: '',
     q: '',
     ...initialFilters,
   })
@@ -67,12 +72,11 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
     queryFn: () => fetchReport(queryParams.value),
   })
 
+  // API-функция для экспорта (заглушка)
   const fetchAllReportItemsForExport = async (): Promise<ReportItem[]> => {
-    // Для экспорта мы берем ТЕКУЩИЕ фильтры, но игнорируем пагинацию
     const exportParams = { ...filters }
     console.log('Fetching ALL report items for export with filters:', exportParams)
 
-    // ЗАГЛУШКА
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
     return Array.from({ length: 123 }, (_, i) => ({
@@ -80,6 +84,8 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
       eq_type: 'Турбина',
       station_object: `Мосэнерго ТЭЦ-${Math.floor(Math.random() * 20) + 1}`,
       factory_no: String(Math.floor(10000 + Math.random() * 90000)),
+      station_no: `ст.${i + 1}`,
+      label: `марк.${i + 1}`,
       doc_name: `Чертеж ${filters.q || ''} ${i + 1}`,
       doc_no: 1000 + i + 1,
       user: 'yuaalekseeva',
@@ -95,6 +101,11 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
       factory_no: '',
       date_from: '',
       date_to: '',
+      doc_name: '',
+      label: '',
+      order_no: '',
+      station_no: '',
+      eq_type: '',
       q: '',
     })
     tableOptions.value.page = 1

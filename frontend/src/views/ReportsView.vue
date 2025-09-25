@@ -9,63 +9,8 @@
       </v-col>
     </v-row>
 
-    <!-- Карточка с фильтрами -->
-    <v-card flat class="border mb-6">
-      <v-card-title class="d-flex align-center">
-        <v-icon start icon="mdi-filter-variant"></v-icon>
-        Фильтры
-        <v-spacer></v-spacer>
-        <v-btn size="small" variant="text" prepend-icon="mdi-close" @click="resetFiltersAndRefetch">
-          Сбросить
-        </v-btn>
-      </v-card-title>
-      <v-divider></v-divider>
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" sm="6" md="3">
-            <v-text-field
-              v-model="filters.station_object"
-              label="Станция / Объект"
-              clearable
-              hide-details="auto"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-text-field
-              v-model="filters.factory_no"
-              label="Заводской номер"
-              clearable
-              hide-details="auto"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" sm="6" md="3">
-            <v-text-field
-              v-model="filters.q"
-              label="Поиск по всем полям"
-              clearable
-              hide-details="auto"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" sm="6" md="3" class="d-flex align-center">
-            <v-text-field
-              v-model="filters.date_from"
-              label="Дата с"
-              type="date"
-              clearable
-              hide-details="auto"
-              class="mr-2"
-            ></v-text-field>
-            <v-text-field
-              v-model="filters.date_to"
-              label="Дата по"
-              type="date"
-              clearable
-              hide-details="auto"
-            ></v-text-field>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <!-- Используем унифицированный компонент фильтров -->
+    <search-filters v-model="filters" @reset="resetFilters" />
 
     <!-- Таблица с результатами -->
     <v-card flat class="border">
@@ -96,10 +41,10 @@
         item-value="id"
         class="elevation-0"
         hover
-        @update:options="loadItems"
+        density="compact"
       >
-        <template #[`item.created`]="{ item }">
-          {{ new Date(item.created).toLocaleDateString() }}
+        <template #[`item.created`]="{ value }">
+          {{ value ? new Date(value).toLocaleDateString() : '-' }}
         </template>
 
         <template #no-data>
@@ -126,37 +71,43 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useReports } from '@/composables/useReports'
-import * as XLSX from 'xlsx'
-import type { ReportItem } from '@/types/api'
-import { useNotifier } from '@/composables/useNotifier'
 import { useAuthStore } from '@/stores/auth'
+import * as XLSX from 'xlsx'
+import type { ReportItem, SearchParams } from '@/types/api'
+import { useNotifier } from '@/composables/useNotifier'
+import SearchFilters from '@/components/common/SearchFilters.vue'
 
-const headers = [
-  { title: 'Станция/Объект', key: 'station_object', sortable: true },
-  { title: 'Зав. №', key: 'factory_no', sortable: true },
-  { title: 'Документ', key: 'doc_name', sortable: false },
-  { title: 'Номер', key: 'doc_no', sortable: true },
-  { title: 'Пользователь', key: 'user', sortable: true },
-  { title: 'Дата', key: 'created', sortable: true },
-]
-
-const lastSessionId = history.state.lastSessionId as string | undefined
 const authStore = useAuthStore()
-const isExporting = ref(false)
 const notifier = useNotifier()
 
-let initialFilters = {}
+const lastSessionId = history.state.lastSessionId as string | undefined
+let initialFilters: Partial<SearchParams> = {}
 if (lastSessionId) {
-  // Если пришли из визарда, фильтруем по ID сессии
+  // Если пришли из шага, фильтруем по ID сессии
   initialFilters = { session_id: lastSessionId }
 } else if (authStore.user) {
   // Иначе фильтруем по имени текущего пользователя
   initialFilters = { username: authStore.user.login }
 }
+
 const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =
   useReports(initialFilters)
+
+const isExporting = ref(false)
+
+const headers = [
+  { title: '№ Документа', key: 'doc_no', sortable: true },
+  { title: 'Дата регистрации', key: 'created', sortable: true },
+  { title: 'Наименование документа', key: 'doc_name', sortable: false },
+  { title: 'Пользователь', key: 'user', sortable: true },
+  { title: 'Станция/Объект', key: 'station_object', sortable: false },
+  { title: 'Тип оборуд.', key: 'eq_type', sortable: false },
+  { title: 'Зав. №', key: 'factory_no', sortable: false },
+  { title: 'Ст. №', key: 'station_no', sortable: false },
+  { title: 'Маркировка', key: 'label', sortable: false },
+] as const
 
 onMounted(() => {
   if (history.state.lastSessionId) {
@@ -164,7 +115,9 @@ onMounted(() => {
   }
 })
 
-function loadItems() {}
+function resetFilters() {
+  resetFiltersAndRefetch()
+}
 
 async function exportToExcel() {
   isExporting.value = true
@@ -177,12 +130,15 @@ async function exportToExcel() {
     }
 
     const dataToExport = allItems.map((item: ReportItem) => ({
+      '№ Документа': item.doc_no,
+      'Дата регистрации': new Date(item.created).toLocaleDateString(),
+      'Наименование документа': item.doc_name,
+      'Пользователь': item.user,
       'Станция/Объект': item.station_object,
+      'Тип оборуд.': item.eq_type,
       'Зав. №': item.factory_no,
-      Документ: item.doc_name,
-      Номер: item.doc_no,
-      Пользователь: item.user,
-      Дата: new Date(item.created).toLocaleDateString(),
+      'Ст. №': item.station_no,
+      'Маркировка': item.label,
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport)

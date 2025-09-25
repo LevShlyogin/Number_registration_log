@@ -9,90 +9,25 @@
       </v-col>
     </v-row>
 
-    <v-card flat class="border mb-6">
-      <v-card-title class="d-flex align-center">
-        <v-icon start icon="mdi-filter-variant"></v-icon>
-        Фильтры поиска
-      </v-card-title>
-      <v-divider></v-divider>
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.station_object"
-              label="Станция/Объект"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.station_no"
-              label="№ станционный"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.label"
-              label="Маркировка"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.factory_no"
-              label="№ заводской"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.order_no"
-              label="№ заказа"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.username"
-              label="Пользователь"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.date_from"
-              label="Дата от"
-              type="date"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-          <v-col cols="12" sm="6" md="3"
-            ><v-text-field
-              v-model="filters.date_to"
-              label="Дата до"
-              type="date"
-              clearable
-              hide-details="auto"
-            ></v-text-field
-          ></v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <!-- Используем унифицированный компонент фильтров -->
+    <search-filters v-model="filters" @reset="resetFilters" />
 
     <v-card flat class="border">
       <v-card-title class="d-flex align-center">
         Результаты
         <v-spacer></v-spacer>
-        <!-- TODO: Добавить экспорт -->
+        <v-btn
+          color="primary"
+          variant="tonal"
+          prepend-icon="mdi-file-excel-outline"
+          @click="exportToExcel"
+          :loading="isExporting"
+          :disabled="!documents || documents.items.length === 0"
+        >
+          Экспорт в Excel
+        </v-btn>
       </v-card-title>
+      <v-divider></v-divider>
       <v-data-table-server
         v-model:items-per-page="tableOptions.itemsPerPage"
         v-model:page="tableOptions.page"
@@ -103,6 +38,7 @@
         :loading="isLoading"
         hover
         density="compact"
+        item-value="id"
       >
         <template #[`item.reg_date`]="{ value }">
           {{ value ? new Date(value).toLocaleDateString() : '-' }}
@@ -130,24 +66,33 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import * as XLSX from 'xlsx'
 import { useAdmin } from '@/composables/useAdmin'
 import EditDocumentDialog from '@/components/admin/EditDocumentDialog.vue'
 import type { AdminDocumentRow, DocumentUpdatePayload } from '@/types/api'
+import SearchFilters from '@/components/common/SearchFilters.vue'
+import { useNotifier } from '@/composables/useNotifier'
 
 const headers = [
-  { title: '№ док.', key: 'doc_no' },
-  { title: 'Дата', key: 'reg_date' },
-  { title: 'Наименование', key: 'doc_name' },
+  { title: '№ Документа', key: 'doc_no', sortable: true },
+  { title: 'Дата регистрации', key: 'reg_date', sortable: true },
+  { title: 'Наименование документа', key: 'doc_name', sortable: false },
+  { title: 'Пользователь', key: 'username', sortable: true },
   { title: 'Станция/Объект', key: 'station_object', sortable: false },
+  { title: 'Тип оборуд.', key: 'eq_type', sortable: false },
   { title: 'Зав. №', key: 'factory_no', sortable: false },
-  { title: 'Пользователь', key: 'username' },
+  { title: 'Ст. №', key: 'station_no', sortable: false },
+  { title: 'Маркировка', key: 'label', sortable: false },
   { title: 'Действия', key: 'actions', sortable: false, align: 'end' },
 ] as const
 
-const { documents, isLoading, tableOptions, filters, saveDocument } = useAdmin()
+const notifier = useNotifier()
+const { documents, isLoading, tableOptions, filters, saveDocument, fetchAllAdminItemsForExport } =
+  useAdmin()
 
 const isEditDialogOpen = ref(false)
 const selectedDocument = ref<AdminDocumentRow | null>(null)
+const isExporting = ref(false)
 
 function openEditDialog(item: AdminDocumentRow) {
   selectedDocument.value = item
@@ -159,13 +104,53 @@ function onDocumentUpdate({ id, payload }: { id: number; payload: DocumentUpdate
     { id, payload },
     {
       onSuccess: () => {
-        // Уведомление об успехе можно добавить здесь
+        notifier.success('Запись успешно обновлена!')
         isEditDialogOpen.value = false
       },
-      onError: () => {
-        // Уведомление об ошибке
+      onError: (error) => {
+        notifier.error(`Ошибка обновления: ${(error as Error).message}`)
       },
     },
   )
+}
+
+async function exportToExcel() {
+  isExporting.value = true
+  try {
+    const allItems = await fetchAllAdminItemsForExport()
+    if (!allItems || allItems.length === 0) {
+      notifier.warning('Нет данных для экспорта!')
+      return
+    }
+    // Заголовки для Excel-файла
+    const dataToExport = allItems.map((item: AdminDocumentRow) => ({
+      '№ Документа': item.doc_no,
+      'Дата регистрации': new Date(item.reg_date).toLocaleDateString(),
+      'Наименование документа': item.doc_name,
+      'Пользователь': item.username,
+      'Станция/Объект': item.station_object,
+      'Тип оборуд.': item.eq_type,
+      'Зав. №': item.factory_no,
+      'Ст. №': item.station_no,
+      'Маркировка': item.label,
+      'Примечание': item.note,
+    }))
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Админ_Отчет')
+    XLSX.writeFile(workbook, `Админ_Отчет_${new Date().toISOString().split('T')[0]}.xlsx`)
+  } catch (error) {
+    console.error('Ошибка при экспорте в Excel (Админ):', error)
+    notifier.error('Произошла ошибка при формировании отчета для экспорта.')
+  } finally {
+    isExporting.value = false
+  }
+}
+
+function resetFilters() {
+  for (const key in filters) {
+    filters[key] = undefined
+  }
+  tableOptions.value.page = 1
 }
 </script>
