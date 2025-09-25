@@ -57,16 +57,19 @@
 
     <!-- Карточка с результатом -->
     <v-expand-transition>
-      <v-card v-if="result" variant="tonal" color="success" class="mt-6">
+      <v-card v-if="wizardStore.hasActiveSession" variant="tonal" color="success" class="mt-6">
         <v-card-title>
           <v-icon start icon="mdi-check-circle"></v-icon>
           Успешно зарезервировано!
         </v-card-title>
         <v-card-text>
-          <p class="mt-2 font-weight-medium">Номера:</p>
-          <v-sheet max-height="150" class="overflow-y-auto pa-2 mt-1" color="transparent">
+          <!-- Используем данные ИЗ СТОРА -->
+          <p class="mt-2 font-weight-medium">
+            Всего зарезервировано: {{ wizardStore.reservedNumbers.length }}
+          </p>
+          <v-sheet max-height="150" class="scrollable-chip-group pa-2 mt-1" color="transparent">
             <v-chip-group>
-              <v-chip v-for="num in result.reserved_numbers" :key="num" label>
+              <v-chip v-for="num in wizardStore.reservedNumbers" :key="num" label>
                 {{ num }}
               </v-chip>
             </v-chip-group>
@@ -110,7 +113,7 @@ const router = useRouter()
 const wizardStore = useWizardStore()
 const auth = useAuthStore()
 const notifier = useNotifier()
-const { reserve, isLoading, result, reserveSpecific, isReservingSpecific } = useNumberReservation()
+const { reserve, isLoading, reserveSpecific, isReservingSpecific } = useNumberReservation()
 
 const quantity = ref(1)
 const goldenNumbersInput = ref('')
@@ -132,11 +135,13 @@ function handleReserve() {
     },
     {
       onSuccess: (data: ReserveNumbersOut) => {
-        wizardStore.setSession(data.session_id, data.reserved_numbers)
+        wizardStore.setSession(data.session_id, [
+          ...wizardStore.reservedNumbers,
+          ...data.reserved_numbers,
+        ])
         notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)!`)
       },
       onError: (e) => {
-        wizardStore.reset()
         notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
       },
     },
@@ -161,14 +166,16 @@ function handleReserveGolden() {
     },
     {
       onSuccess: (data: ReserveNumbersOut) => {
-        wizardStore.setSession(data.session_id, data.reserved_numbers)
+        wizardStore.setSession(data.session_id, [
+          ...wizardStore.reservedNumbers,
+          ...data.reserved_numbers,
+        ])
         notifier.success(
           `Успешно зарезервировано ${data.reserved_numbers.length} "золотых" номер(а)!`,
         )
-        goldenNumbersInput.value = '' // Очищаем поле
+        goldenNumbersInput.value = ''
       },
       onError: (e) => {
-        wizardStore.reset()
         notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
       },
     },
@@ -187,3 +194,10 @@ function goNext() {
   }
 }
 </script>
+
+<style scoped>
+.scrollable-chip-group {
+  max-height: 150px;
+  overflow-y: auto;
+}
+</style>

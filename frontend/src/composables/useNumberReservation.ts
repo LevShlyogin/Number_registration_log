@@ -3,15 +3,9 @@ import type { AdminReserveSpecific, ReserveNumbersIn, ReserveNumbersOut } from '
 
 // Асинхронная функция для API-запроса
 const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbersOut> => {
-  // --- ЗАГЛУШКА API ---
   console.log('Reserving numbers with payload:', payload)
   await new Promise((resolve) => setTimeout(resolve, 800)) // Имитация сети
 
-  // В будущем здесь будет реальный запрос:
-  // const { data } = await apiClient.post<ReserveNumbersOut>('/sessions/reserve', payload);
-  // return data;
-
-  // Возвращаем mock-данные
   if (payload.quantity <= 0) {
     throw new Error('Количество должно быть больше нуля')
   }
@@ -23,7 +17,6 @@ const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbers
   }
   console.log('Mock response for reservation:', mockResponse)
   return mockResponse
-  // --- КОНЕЦ ЗАГЛУШКИ ---
 }
 
 // API-функция для резерва конкретных номеров (админ)
@@ -42,7 +35,7 @@ const reserveSpecificNumbers = async (
 }
 
 export function useNumberReservation() {
-  const { mutate, isPending, isError, error, data } = useMutation({
+  const { mutate: reserve, isPending: isLoading } = useMutation({
     mutationFn: reserveNumbers,
   })
 
@@ -51,11 +44,8 @@ export function useNumberReservation() {
   })
 
   return {
-    reserve: mutate,
-    isLoading: isPending,
-    isError,
-    error,
-    result: data,
+    reserve,
+    isLoading,
     reserveSpecific,
     isReservingSpecific,
   }
