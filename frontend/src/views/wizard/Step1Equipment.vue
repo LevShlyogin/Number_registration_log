@@ -78,9 +78,9 @@
         Ошибка при поиске: {{ (error as Error).message }}
       </v-alert>
 
-      <div v-if="results" class="mt-4">
-        <p v-if="results.length > 0" class="text-subtitle-1 mb-2">
-          Найдено объектов: {{ results.length }}
+      <div v-if="displayedResults" class="mt-4">
+        <p v-if="displayedResults.length > 0" class="text-subtitle-1 mb-2">
+          Найдено объектов: {{ displayedResults.length }}
         </p>
         <v-sheet
           v-else-if="searchAttempted"
@@ -107,13 +107,13 @@
         </v-sheet>
 
         <v-list
-          v-if="results.length > 0"
+          v-if="displayedResults.length > 0"
           lines="two"
           select-strategy="single-independent"
           bg-color="transparent"
         >
           <v-list-item
-            v-for="item in results"
+            v-for="item in displayedResults"
             :key="item.id"
             @click="selectEquipment(item.id)"
             :value="item.id"
@@ -161,12 +161,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useEquipmentSearch, type SearchParams } from '@/composables/useEquipmentSearch'
 import type { EquipmentOut } from '@/types/api'
-import EquipmentCreateDialog from '@/components/wizard/EquipmentCreateDialog.vue' // Наш новый компонент
+import EquipmentCreateDialog from '@/components/wizard/EquipmentCreateDialog.vue'
 
 const router = useRouter()
 const wizardStore = useWizardStore()
@@ -177,9 +177,18 @@ const searchAttempted = ref(false)
 const formParams = reactive<SearchParams>({})
 const { results, isLoading, isError, error, search } = useEquipmentSearch()
 
+const displayedResults = ref<EquipmentOut[] | undefined>(undefined)
+
+watch(results, (newResults) => {
+  if (newResults) {
+    displayedResults.value = newResults
+  }
+})
+
 function performSearch() {
   searchAttempted.value = true
   wizardStore.selectedEquipmentId = null
+  displayedResults.value = undefined
   search(formParams)
 }
 
@@ -197,9 +206,12 @@ function showCreateForm() {
 
 function onEquipmentCreated(newItem: EquipmentOut) {
   isCreateDialogVisible.value = false
-  if (results.value) {
-    results.value.unshift(newItem)
+  if (displayedResults.value) {
+    displayedResults.value.unshift(newItem)
+  } else {
+    displayedResults.value = [newItem]
   }
+  searchAttempted.value = true
   wizardStore.setEquipment(newItem.id)
 }
 

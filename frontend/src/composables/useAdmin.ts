@@ -56,7 +56,7 @@ export function useAdmin() {
     sortBy: [],
   })
 
-  const filters = reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>({
+  const createDefaultFilters = () => ({
     station_object: '',
     factory_no: '',
     station_no: '',
@@ -69,6 +69,9 @@ export function useAdmin() {
     eq_type: '',
     q: '',
   })
+
+  const filters =
+    reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>(createDefaultFilters())
 
   const queryParams = computed(() => ({
     ...tableOptions.value,
@@ -98,9 +101,14 @@ export function useAdmin() {
   const fetchAllAdminItemsForExport = async (): Promise<AdminDocumentRow[]> => {
     const exportParams = { ...filters }
     console.log('Fetching ALL admin documents for export with filters:', exportParams)
-
     await new Promise((resolve) => setTimeout(resolve, 1500))
     return mockAdminData
+  }
+
+  // Улучшенная функция сброса
+  const resetFilters = () => {
+    Object.assign(filters, createDefaultFilters())
+    tableOptions.value.page = 1
   }
 
   return {
@@ -113,5 +121,6 @@ export function useAdmin() {
     saveDocument,
     isSaving,
     fetchAllAdminItemsForExport,
+    resetFilters,
   }
 }

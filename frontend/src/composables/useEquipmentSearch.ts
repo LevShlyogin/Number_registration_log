@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import apiClient from '@/api'
 import type { EquipmentOut } from '@/types/api'
 
 export interface SearchParams {
@@ -68,21 +67,24 @@ const fetchEquipment = async (params: SearchParams): Promise<EquipmentOut[]> => 
 }
 
 export function useEquipmentSearch() {
-  // searchParams теперь будут локальными для этого composable
   const searchParams = ref<SearchParams>({})
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['equipmentSearch', searchParams],
     queryFn: () => fetchEquipment(searchParams.value),
-    enabled: false, // Запрос будет выполняться только через refetch()
+    enabled: false,
     retry: false,
+    staleTime: 5 * 60 * 1000, // 5 минут
   })
 
   // Функция для запуска поиска с новыми параметрами
   const search = (params: SearchParams) => {
     searchParams.value = params
-    // refetch() вернет Promise, который можно использовать для ожидания
     return refetch()
+  }
+
+  const clearResults = () => {
+    data.value = undefined
   }
 
   return {
@@ -91,5 +93,6 @@ export function useEquipmentSearch() {
     isError,
     error,
     search,
+    clearResults,
   }
 }
