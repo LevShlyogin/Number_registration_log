@@ -1,6 +1,5 @@
 <template>
   <v-container fluid class="pa-0">
-    <!-- Верхняя панель: заголовок + сводка -->
     <v-sheet class="pa-3 border-b rounded-b-0 summary-bar">
       <div class="d-flex flex-wrap align-center justify-space-between gap-3">
         <h3 class="text-h6 font-weight-medium mb-0">Шаг 3: Назначение номеров</h3>
@@ -37,7 +36,6 @@
     </v-sheet>
 
     <v-row class="mt-2">
-      <!-- Левая колонка: форма назначения -->
       <v-col cols="12" md="5">
         <v-card flat class="border rounded-lg">
           <v-card-title class="text-subtitle-1 py-3"> Форма назначения </v-card-title>
@@ -71,7 +69,15 @@
                 no-filter
                 density="comfortable"
                 class="mb-4"
-              />
+              >
+                <template #no-data>
+                  <v-list-item>
+                    <v-list-item-title class="text-caption">
+                      Ничего не найдено — можно использовать новое наименование.
+                    </v-list-item-title>
+                  </v-list-item>
+                </template>
+              </v-combobox>
 
               <v-textarea
                 v-model="formData.notes"
@@ -117,7 +123,6 @@
         </v-card>
       </v-col>
 
-      <!-- Правая колонка: списки номеров -->
       <v-col cols="12" md="7">
         <v-card flat class="border rounded-lg">
           <v-tabs v-model="rightTab" density="comfortable" class="px-2">
@@ -127,7 +132,6 @@
           <v-divider></v-divider>
 
           <v-window v-model="rightTab">
-            <!-- Свободные номера -->
             <v-window-item value="free">
               <v-card-text>
                 <v-text-field
@@ -160,7 +164,6 @@
               </v-card-text>
             </v-window-item>
 
-            <!-- Назначенные номера -->
             <v-window-item value="assigned">
               <v-card-text>
                 <v-text-field
@@ -173,31 +176,30 @@
                   clearable
                   class="mb-2"
                 />
-                <v-sheet class="assigned-table-container border rounded-lg" min-height="220">
-                  <v-data-table
-                    :headers="assignedHeaders"
-                    :items="filteredAssigned"
-                    :items-per-page="-1"
-                    item-key="doc_no"
-                    density="compact"
-                    :no-data-text="'Пока пусто'"
-                    :loading="isLoadingAssigned"
-                    fixed-header
-                  >
-                    <template #[`item.notes`]="{ item }">
-                      <span class="text-medium-emphasis">{{ item.notes ?? '—' }}</span>
-                    </template>
-                    <template #[`item.actions`]="{ item }">
-                      <v-btn
-                        icon="mdi-pencil"
-                        variant="text"
-                        size="x-small"
-                        @click="openEditDialog(item)"
-                      />
-                    </template>
-                    <template #bottom></template>
-                  </v-data-table>
-                </v-sheet>
+                <v-data-table
+                  :headers="assignedHeaders"
+                  :items="filteredAssigned"
+                  :items-per-page="-1"
+                  item-key="doc_no"
+                  density="compact"
+                  no-data-text="Пока пусто"
+                  :loading="isLoadingAssigned"
+                  fixed-header
+                  height="320px"
+                  class="assigned-table"
+                >
+                  <template #[`item.actions`]="{ item }">
+                    <v-btn
+                      icon="mdi-pencil"
+                      variant="text"
+                      size="x-small"
+                      @click="openEditDialog(item)"
+                      :aria-label="'Редактировать ' + item.doc_no"
+                    />
+                  </template>
+
+                  <template #bottom></template>
+                </v-data-table>
               </v-card-text>
             </v-window-item>
           </v-window>
@@ -207,7 +209,6 @@
 
     <v-divider class="my-6"></v-divider>
 
-    <!-- Навигация -->
     <div class="d-flex justify-space-between align-center">
       <v-btn @click="goBack" variant="text">
         <v-icon start icon="mdi-arrow-left"></v-icon>
@@ -242,13 +243,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import type { VForm } from 'vuetify/components'
 import { useWizardStore } from '@/stores/wizard'
 import { useNumberAssignment } from '@/composables/useNumberAssignment'
 import { useDocNameSuggestions } from '@/composables/useSuggestions'
 import EditAssignedDialog from '@/components/wizard/EditAssignedDialog.vue'
 import type { AssignedNumber, DocumentUpdatePayload } from '@/types/api'
 import { useNotifier } from '@/composables/useNotifier'
-import { VForm } from 'vuetify/components'
 
 const suggestions = useDocNameSuggestions()
 const notifier = useNotifier()
@@ -261,7 +262,6 @@ const router = useRouter()
 const wizardStore = useWizardStore()
 const { assignedNumbers, isLoadingAssigned, assignNumber, isAssigning, updateNumber, isUpdating } =
   useNumberAssignment(props.sessionId)
-const numberToAssign = computed(() => selectedFreeNumber.value ?? nextFreeNumber.value)
 
 const isEditDialogOpen = ref(false)
 const selectedItemForEdit = ref<AssignedNumber | null>(null)
@@ -277,7 +277,6 @@ const rules = {
   required: (value: string) => (!!value && value.trim().length > 0) || 'Это поле обязательно.',
 }
 
-// counts and lists
 const assignedCount = computed(() => assignedNumbers.value?.length ?? 0)
 
 const freeNumbers = computed<number[]>(() => {
@@ -289,7 +288,6 @@ const nextFreeNumber = computed<number | null>(() => {
   return freeNumbers.value.length > 0 ? freeNumbers.value[0] : null
 })
 
-// Ручной выбор свободного номера
 const selectedFreeNumber = ref<number | null>(null)
 const searchFree = ref('')
 
@@ -300,14 +298,12 @@ const filteredFreeNumbers = computed<number[]>(() => {
   return list.filter((n) => n.toString().includes(q))
 })
 
-// сбрасываем выбранный номер, если он исчез из списка
 watch(freeNumbers, (list) => {
   if (selectedFreeNumber.value !== null && !list.includes(selectedFreeNumber.value)) {
     selectedFreeNumber.value = null
   }
 })
 
-// поиск по назначенным
 const searchAssigned = ref('')
 
 const filteredAssigned = computed<AssignedNumber[]>(() => {
@@ -323,17 +319,19 @@ const filteredAssigned = computed<AssignedNumber[]>(() => {
 })
 
 const assignedHeaders = [
-  { title: '№', key: 'doc_no', sortable: true, width: 100 },
+  { title: '№', key: 'doc_no', sortable: true, width: '90px' },
   { title: 'Документ', key: 'doc_name', sortable: true },
   { title: 'Примечание', key: 'notes', sortable: false },
-  { title: '', key: 'actions', sortable: false, align: 'end', width: 72 },
+  { title: 'Действия', key: 'actions', sortable: false, align: 'end', width: '60px' },
 ] as const
 
-async function handleAssign() {
-  const { valid } = await formRef.value.validate()
-  const numberToAssign = selectedFreeNumber.value ?? nextFreeNumber.value
+const numberToAssign = computed(() => selectedFreeNumber.value ?? nextFreeNumber.value)
 
-  if (valid && wizardStore.currentSessionId && numberToAssign !== null) {
+async function handleAssign() {
+  if (!formRef.value) return
+  const { valid } = await formRef.value.validate()
+
+  if (valid && wizardStore.currentSessionId && numberToAssign.value !== null) {
     assignNumber(
       {
         data: {
@@ -341,12 +339,12 @@ async function handleAssign() {
           doc_name: formData.doc_name.trim(),
           notes: formData.notes,
         },
-        nextNumberToAssign: numberToAssign,
+        nextNumberToAssign: numberToAssign.value,
       },
       {
         onSuccess: () => {
           resetForm()
-          clearSelected()
+          selectedFreeNumber.value = null // También limpiar el número seleccionado manualmente
           suggestions.searchQuery.value = ''
           rightTab.value = 'assigned'
         },
@@ -357,20 +355,13 @@ async function handleAssign() {
 
 function resetForm() {
   formRef.value?.reset()
-  formData.doc_name = ''
-  formData.notes = ''
 }
-
 function toggleSelectFreeNumber(num: number) {
   if (selectedFreeNumber.value === num) {
     selectedFreeNumber.value = null
   } else {
     selectedFreeNumber.value = num
   }
-}
-
-function clearSelected() {
-  selectedFreeNumber.value = null
 }
 
 function openEditDialog(item: AssignedNumber) {
@@ -417,16 +408,25 @@ function complete() {
 <style scoped>
 .summary-bar {
   position: sticky;
-  top: 0;
+  top: 64px;
   z-index: 2;
   background: rgb(var(--v-theme-surface));
 }
 
 .free-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 8px;
-  max-height: 300px;
+  max-height: 280px;
   overflow-y: auto;
+  align-content: start;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 180px;
 }
 </style>
