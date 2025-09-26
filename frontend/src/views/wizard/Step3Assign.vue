@@ -180,7 +180,7 @@
                   :headers="assignedHeaders"
                   :items="filteredAssigned"
                   :items-per-page="-1"
-                  item-key="doc_no"
+                  item-value="doc_no"
                   density="compact"
                   no-data-text="Пока пусто"
                   :loading="isLoadingAssigned"
@@ -188,6 +188,27 @@
                   height="320px"
                   class="assigned-table"
                 >
+                  <template #[`item.doc_name`]="{ item }">
+                    <v-tooltip :text="item.doc_name" location="top">
+                      <template #activator="{ props }">
+                        <div v-bind="props" class="truncate-text">
+                          {{ item.doc_name }}
+                        </div>
+                      </template>
+                    </v-tooltip>
+                  </template>
+
+                  <template #[`item.notes`]="{ item }">
+                    <v-tooltip :text="item.notes" location="top" v-if="item.notes">
+                      <template #activator="{ props }">
+                        <div v-bind="props" class="truncate-text">
+                          {{ item.notes }}
+                        </div>
+                      </template>
+                    </v-tooltip>
+                    <span v-else class="text-medium-emphasis">—</span>
+                  </template>
+
                   <template #[`item.actions`]="{ item }">
                     <v-btn
                       icon="mdi-pencil"
@@ -319,10 +340,10 @@ const filteredAssigned = computed<AssignedNumber[]>(() => {
 })
 
 const assignedHeaders = [
-  { title: '№', key: 'doc_no', sortable: true, width: '90px' },
-  { title: 'Документ', key: 'doc_name', sortable: true },
-  { title: 'Примечание', key: 'notes', sortable: false },
-  { title: 'Действия', key: 'actions', sortable: false, align: 'end', width: '60px' },
+  { title: '№', key: 'doc_no', sortable: true, width: '20%' },
+  { title: 'Документ', key: 'doc_name', sortable: true, width: '40%' },
+  { title: 'Примечание', key: 'notes', sortable: false, width: '25%' },
+  { title: 'Ред.', key: 'actions', sortable: false, align: 'end', width: '15%' },
 ] as const
 
 const numberToAssign = computed(() => selectedFreeNumber.value ?? nextFreeNumber.value)
@@ -404,6 +425,19 @@ function complete() {
   })
 }
 </script>
+
+<style>
+.assigned-table .v-table__wrapper > table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
 
 <style scoped>
 .summary-bar {
