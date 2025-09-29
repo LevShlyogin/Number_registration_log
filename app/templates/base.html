@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ title or "Журнал регистрации" }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.12/mvp.css">
+  <style>
+    .gold { color: goldenrod; font-weight: bold; }
+    .muted { color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .badge { border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Журнал регистрации УТЗ</h1>
+  <p class="muted">Идентификация по X-User: {{ username }}</p>
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+<footer class="muted">© {{ year }}. FastAPI + HTMX.</footer>
+</body>
+</html>

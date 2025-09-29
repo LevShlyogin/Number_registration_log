@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Оборудование</h2>
+<form hx-post="/equipment" hx-target="#eq-result" class="grid">
+  <label>Тип оборудования <input name="eq_type" required></label>
+  <label>№ заводской <input name="factory_no"></label>
+  <label>№ заказа <input name="order_no"></label>
+  <label>Маркировка <input name="label"></label>
+  <label>№ станционный <input name="station_no"></label>
+  <label>Станция / Объект <input name="station_object"></label>
+  <label class="full">Примечания <input name="notes"></label>
+  <button type="submit">Сохранить</button>
+</form>
+<div id="eq-result"></div>
+{% endblock %}
