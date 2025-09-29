@@ -1,4 +1,3 @@
-# C:\Cursor_projects\Number_registration_log\app\routers\admin_dashboard.py
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Form, Request, Query
@@ -409,6 +408,7 @@ async def admin_documents(
     date_from: str | None = Query(default=None, alias="date-from"),
     date_to: str | None = Query(default=None, alias="date-to"),
     eq_type: str | None = Query(default=None, alias="eq-type"),
+    doc_name: str | None = Query(default=None, alias="doc-name"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -416,7 +416,6 @@ async def admin_documents(
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
     
-    # --- УЛУЧШЕННАЯ ЛОГИКА ОЧИСТКИ И ОТЛАДКА ---
     def clean_param(p):
         if p is None:
             return None
@@ -429,17 +428,7 @@ async def admin_documents(
     cleaned_order_no = clean_param(order_no)
     cleaned_username = clean_param(username)
     cleaned_eq_type = clean_param(eq_type)
-    
-    print("--------------------------------------------------")
-    print("DEBUG [ROUTER]: Получены очищенные фильтры:")
-    print(f"  - station_objects: {station_object!r}") # Добавили эту строку
-    print(f"  - factory_no: {cleaned_factory_no!r}")
-    print(f"  - station_no: {cleaned_station_no!r}")
-    print(f"  - label: {cleaned_label!r}")
-    print(f"  - order_no: {cleaned_order_no!r}")
-    print(f"  - username: {cleaned_username!r}")
-    print(f"  - eq_type: {cleaned_eq_type!r}")
-    print("--------------------------------------------------")
+    cleaned_doc_name = clean_param(doc_name)
 
     svc = ReportsService(session)
     
@@ -467,14 +456,14 @@ async def admin_documents(
         username=cleaned_username,
         date_from=df,
         date_to=dt,
-        eq_type=cleaned_eq_type
+        eq_type=cleaned_eq_type,
+        doc_name=cleaned_doc_name
     )
     
     if request.headers.get("Hx-Request") == "true":
         if not rows:
             return HTMLResponse('<div class="alert alert-warning">Документы не найдены</div>')
         
-        # ИЗМЕНЕНО: Конвертируем данные в JSON для передачи в JS
         import json
         
         html = """
@@ -500,7 +489,6 @@ async def admin_documents(
         """
         
         for row in rows:
-            # ИЗМЕНЕНО: Передаем весь объект row в функцию editDocument
             # Используем json.dumps для корректной экранировки кавычек
             row_json = json.dumps(row, ensure_ascii=False).replace("'", "\\'")
             html += f"""
@@ -537,21 +525,36 @@ async def admin_documents(
 
 @router.get("/documents/excel")
 async def admin_documents_excel(
-    station_object: list[str] | None = Query(default=None),
-    station_no: str | None = Query(default=None),
-    label: str | None = Query(default=None),
-    factory_no: str | None = Query(default=None),
-    order_no: str | None = Query(default=None),
-    username: str | None = Query(default=None),
-    date_from: str | None = Query(default=None),
-    date_to: str | None = Query(default=None),
-    eq_type: str | None = Query(default=None),
+    station_object: list[str] | None = Query(default=None, alias="station-object"),
+    station_no: str | None = Query(default=None, alias="station-no"),
+    label: str | None = Query(default=None, alias="label"),
+    factory_no: str | None = Query(default=None, alias="factory-no"),
+    order_no: str | None = Query(default=None, alias="order-no"),
+    username: str | None = Query(default=None, alias="username"),
+    date_from: str | None = Query(default=None, alias="date-from"),
+    date_to: str | None = Query(default=None, alias="date-to"),
+    eq_type: str | None = Query(default=None, alias="eq-type"),
+    doc_name: str | None = Query(default=None, alias="doc-name"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
 ):
     """Экспорт документов в Excel для админов"""
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Только админ.")
+
+    def clean_param(p):
+        if p is None:
+            return None
+        stripped = p.strip()
+        return stripped if stripped else None
+
+    cleaned_station_no = clean_param(station_no)
+    cleaned_label = clean_param(label)
+    cleaned_factory_no = clean_param(factory_no)
+    cleaned_order_no = clean_param(order_no)
+    cleaned_username = clean_param(username)
+    cleaned_eq_type = clean_param(eq_type)
+    cleaned_doc_name = clean_param(doc_name)
     
     svc = ReportsService(session)
     
@@ -568,7 +571,6 @@ async def admin_documents_excel(
             dt = datetime.fromisoformat(date_to + " 23:59:59")
         except ValueError:
             pass
-    
     # Экспортируем в Excel
     fname = await svc.export_excel_extended_admin(
         station_objects=station_object,
@@ -579,7 +581,8 @@ async def admin_documents_excel(
         username=username,
         date_from=df,
         date_to=dt,
-        eq_type=eq_type
+        eq_type=eq_type,
+        doc_name=doc_name
     )
     
     from fastapi.responses import FileResponse

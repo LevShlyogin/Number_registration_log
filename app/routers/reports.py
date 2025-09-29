@@ -48,6 +48,8 @@ async def report_json(
     date_to: str | None = Query(default=None, alias="date-to"),
     session: AsyncSession = Depends(lifespan_session),
     user: CurrentUser = Depends(get_current_user),
+    doc_name: str | None = Query(default=None, alias="doc_name"),
+    username: str | None = Query(default=None, alias="username"),
 ):
     svc = ReportsService(session)
     df = _parse_dt(date_from)
@@ -66,7 +68,9 @@ async def report_json(
         factory_no=clean_param(factory_no), 
         order_no=clean_param(order_no), 
         date_from=df, 
-        date_to=dt
+        date_to=dt,
+        doc_name=clean_param(doc_name),
+        username=clean_param(username)
     )
 
     if request.headers.get("Hx-Request") == "true":
@@ -100,8 +104,10 @@ async def report_excel(
     order_no: str | None = Query(default=None, alias="order_no"),
     date_from: str | None = Query(default=None, alias="date-from"),
     date_to: str | None = Query(default=None, alias="date-to"),
-    session: AsyncSession = Depends(lifespan_session),
+    session: AsyncSession = Depends(lifespan_session),          
     user: CurrentUser = Depends(get_current_user),
+    doc_name: str | None = Query(default=None, alias="doc_name"),
+    username: str | None = Query(default=None, alias="username"),
 ):
     svc = ReportsService(session)
     df = _parse_dt(date_from)
@@ -120,7 +126,9 @@ async def report_excel(
         factory_no=clean_param(factory_no), 
         order_no=clean_param(order_no), 
         date_from=df, 
-        date_to=dt
+        date_to=dt,
+        doc_name=clean_param(doc_name),
+        username=clean_param(username)
     )
     
     import os
