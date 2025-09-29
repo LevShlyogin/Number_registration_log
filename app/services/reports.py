@@ -63,11 +63,13 @@ class ReportsService:
         factory_no: str | None,
         order_no: str | None,
         date_from, 
-        date_to
+        date_to,
+        doc_name: str | None = None,
+        username: str | None = None,
     ):
         """Расширенный поиск с дополнительными фильтрами"""
         rows = await self.repo.fetch_extended(
-            station_objects, station_no, label, factory_no, order_no, date_from, date_to
+            station_objects, station_no, label, factory_no, order_no, date_from, date_to, doc_name = doc_name, username = username
         )
         payload = []
         for (
@@ -106,16 +108,16 @@ class ReportsService:
         path = builder.build_report(data)
         return path
 
-    async def export_excel_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to) -> str:
+    async def export_excel_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to, doc_name: str | None = None, username: str | None = None) -> str:
         """Экспорт в Excel с расширенными фильтрами"""
-        data = await self.get_rows_extended(station_objects, station_no, label, factory_no, order_no, date_from, date_to)
+        data = await self.get_rows_extended(station_objects, station_no, label, factory_no, order_no, date_from, date_to, doc_name = doc_name, username = username)
         builder = ReportExcelBuilder()
         path = builder.build_report_extended(data)
         return path
     
-    async def get_rows_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None) -> list[dict]:
+    async def get_rows_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None, doc_name: str | None = None) -> list[dict]:
         """Расширенный поиск для админов с дополнительными фильтрами"""
-        rows = await self.repo.fetch_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type)
+        rows = await self.repo.fetch_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type, doc_name = doc_name)
         payload = []
         for (
             id_, numeric, reg_date, doc_name, note, eq_type, factory_no, order_no, label, station_no, station_object, username,
@@ -136,9 +138,9 @@ class ReportsService:
             })
         return payload
     
-    async def export_excel_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None) -> str:
+    async def export_excel_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None, doc_name: str | None = None) -> str:
         """Экспорт в Excel для админов с расширенными фильтрами"""
-        data = await self.get_rows_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type)
+        data = await self.get_rows_extended_admin(station_objects, station_no, label, factory_no, order_no, username, date_from, date_to, eq_type, doc_name = doc_name)
         builder = ReportExcelBuilder()
         path = builder.build_report_extended_admin(data)
         return path
