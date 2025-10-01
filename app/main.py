@@ -1,12 +1,14 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter
 
 from app.core.config import settings
-from app.db import session
+from app.core import db
 from app.tasks.cleanup import start_scheduler, stop_scheduler
 from app.routers import equipment, documents, sessions, reports, suggest, admin, importer
-from fastapi import APIRouter
+
+from app.routers import users as users_router
 
 api_router = APIRouter()
 
@@ -42,14 +44,12 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def on_startup():
-    await session.init()
-    start_scheduler()
+    start_scheduler(db.SessionLocal)
     logger.info("Application startup complete.")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    await session.close()
     stop_scheduler()
     logger.info("Application shutdown complete.")
 
