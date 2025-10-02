@@ -8,45 +8,31 @@ from app.core.db import lifespan_session
 from app.models.document import Document
 from app.repositories.equipment import EquipmentRepository
 
-router = APIRouter(prefix="/suggest", tags=["suggest"])
+router = APIRouter()
 
 
 @router.get("/doc-names", response_model=list[str])
 async def suggest_doc_names(
-    q: str | None = None,
-    doc_name: str | None = None,
-    session: AsyncSession = Depends(lifespan_session),
+        q: str | None = None,
+        session: AsyncSession = Depends(lifespan_session),
 ):
-    term = q or doc_name
+    """Автодополнение для наименований документов."""
     stmt = select(func.distinct(Document.doc_name))
-    if term:
-        stmt = stmt.where(Document.doc_name.ilike(f"%{term}%"))
+    if q and q.strip():
+        stmt = stmt.where(Document.doc_name.ilike(f"%{q.strip()}%"))
     stmt = stmt.order_by(Document.doc_name.asc()).limit(20)
-    res = await session.execute(stmt)
-    return [r[0] for r in res.fetchall() if r[0]]
-
-
-@router.get("/notes", response_model=list[str])
-async def suggest_notes(
-    q: str | None = None,
-    session: AsyncSession = Depends(lifespan_session),
-):
-    """Автодополнение для примечаний документов"""
-    stmt = select(func.distinct(Document.note))
-    if q:
-        stmt = stmt.where(Document.note.ilike(f"%{q}%"))
-    stmt = stmt.order_by(Document.note.asc()).limit(20)
     res = await session.execute(stmt)
     return [r[0] for r in res.fetchall() if r[0]]
 
 
 @router.get("/equipment/{field}", response_model=list[str])
 async def suggest_equipment_field(
-    field: str,
-    q: str | None = None,
-    station_object: str | None = None,
-    session: AsyncSession = Depends(lifespan_session),
+        field: str,
+        q: str | None = None,
+        station_object: str | None = None,
+        session: AsyncSession = Depends(lifespan_session),
 ):
+    """Автодополнение для полей оборудования."""
     repo = EquipmentRepository(session)
     allowed = {"eq_type", "factory_no", "order_no", "label", "station_no", "station_object"}
     if field not in allowed:
