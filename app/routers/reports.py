@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from app.core.db import lifespan_session
-from app.core.auth import get_current_user, CurrentUser
-from app.services.reports import ReportsService, start_of_week
-from app.schemas.reports import ReportRow
-from app.schemas.admin import AdminDocumentRow
-from starlette.responses import FileResponse
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.background import BackgroundTask
-import os
+from starlette.responses import FileResponse
+
+from app.core.auth import get_current_user, CurrentUser
+from app.core.db import lifespan_session
+from app.schemas.admin import AdminDocumentRow
+from app.schemas.reports import ReportRowOut
+from app.services.reports import ReportsService
 
 router = APIRouter()
 
