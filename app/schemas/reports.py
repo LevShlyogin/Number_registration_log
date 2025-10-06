@@ -26,3 +26,18 @@ class ReportRow(BaseModel):
     middle_name: str | None
     department: str | None
     username_fallback: str | None
+
+
+class ReportRowOut(BaseModel):
+    """Схема для одной строки отчета, как она возвращается API."""
+    doc_no: str
+    reg_date: str
+    doc_name: str
+    note: str | None
+    eq_type: str
+    factory_no: str | None
+    order_no: str | None
+    label: str | None
+    station_no: str | None
+    station_object: str | None
+    username: str

@@ -38,9 +38,8 @@ def clean_param(p: str | None) -> str | None:
     return stripped if stripped else None
 
 
-@router.get("", response_model=List[ReportRow])  # <-- Изменили response_model
+@router.get("", response_model=List[ReportRowOut])
 async def get_report(
-        # Используем Query для всех параметров, чтобы FastAPI правильно их обрабатывал
         station_object: list[str] | None = Query(default=None),
         station_no: str | None = Query(default=None),
         label: str | None = Query(default=None),
@@ -57,7 +56,6 @@ async def get_report(
     svc = ReportsService(session)
     df = _parse_dt(date_from)
     dt = _parse_dt(date_to)
-
     stations = _parse_stations(station_object)
 
     rows = await svc.get_rows_extended(
