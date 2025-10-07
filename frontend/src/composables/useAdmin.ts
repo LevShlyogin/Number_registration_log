@@ -68,6 +68,7 @@ export function useAdmin() {
     date_to: '',
     eq_type: '',
     q: '',
+    session_id: undefined,
   })
 
   const filters =
@@ -105,7 +106,6 @@ export function useAdmin() {
     return mockAdminData
   }
 
-  // Улучшенная функция сброса
   const resetFilters = () => {
     Object.assign(filters, createDefaultFilters())
     tableOptions.value.page = 1

@@ -1,19 +1,30 @@
 FROM python:3.13-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.8.3
-
+# Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl git && rm -rf /var/lib/apt/lists/*
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install "poetry==$POETRY_VERSION"
+WORKDIR /app/
 
-WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH=/app
 
-COPY pyproject.toml poetry.lock* ./
-RUN poetry config virtualenvs.create false && poetry install --no-root
+# Копируем файлы зависимостей
+COPY ./pyproject.toml ./uv.lock* /app/
 
-COPY . .
+RUN uv venv && uv pip install --upgrade pip && uv sync --no-dev
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY ./app /app/app
+
+# Копируем 'alembic.ini' и папку 'alembic/' в рабочую директорию '/app'
+COPY ./alembic.ini /app/alembic.ini
+COPY ./alembic /app/alembic
+
+# Копируем скрипт запуска
+COPY ./entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+EXPOSE 8000
+ENTRYPOINT ["/app/entrypoint.sh"]
