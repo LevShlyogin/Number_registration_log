@@ -5,24 +5,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app/
+WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH=/app
+# Устанавливаем Poetry
+RUN pip install poetry
 
 # Копируем файлы зависимостей
-COPY ./pyproject.toml ./uv.lock* /app/
+COPY ./pyproject.toml ./poetry.lock* /app/
 
-RUN uv venv && uv pip install --upgrade pip && uv sync --no-dev
+RUN poetry config virtualenvs.in-project true \
+    && poetry install
 
 COPY ./app /app/app
-
-# Копируем 'alembic.ini' и папку 'alembic/' в рабочую директорию '/app'
 COPY ./alembic.ini /app/alembic.ini
 COPY ./alembic /app/alembic
-
-# Копируем скрипт запуска
 COPY ./entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
