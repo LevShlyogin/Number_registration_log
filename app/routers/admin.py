@@ -9,6 +9,7 @@ from app.services.admin import AdminService
 from app.services.reservation import ReservationService
 from app.schemas.admin import GoldenSuggestOut, AdminReserveSpecific
 from app.schemas.sessions import ReserveResult
+from app.core.config import settings
 
 router = APIRouter()
 
