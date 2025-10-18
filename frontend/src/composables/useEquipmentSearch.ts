@@ -14,7 +14,7 @@ export interface SearchParams {
 
 const fetchEquipment = async (params: SearchParams): Promise<EquipmentOut[]> => {
   const filteredParams = Object.fromEntries(
-    Object.entries(params).filter(([_, v]) => v != null && v !== ''),
+    Object.entries(params).filter(([, v]) => v != null && v !== ''),
   )
 
   const { data } = await apiClient.get<EquipmentOut[]>('/equipment/search', {
@@ -31,16 +31,15 @@ export function useEquipmentSearch() {
     queryFn: () => fetchEquipment(searchParams.value),
     enabled: false,
     retry: false,
-    staleTime: 5 * 60 * 1000,
   })
 
   const search = (params: SearchParams) => {
     searchParams.value = params
-    return refetch()
+    refetch()
   }
 
   const clearResults = () => {
-    data.value = undefined
+    searchParams.value = {}
   }
 
   return {

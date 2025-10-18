@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="dialog" persistent max-width="500px">
     <v-card>
-      <v-card-title>Редактирование записи №{{ itemData?.doc_no }}</v-card-title>
+      <v-card-title>Редактирование записи №{{ itemData?.formatted_no }}</v-card-title>
       <v-card-text>
         <v-form ref="formRef">
           <v-text-field
@@ -10,7 +10,7 @@
             :rules="[(v) => !!v || 'Обязательно']"
             class="mb-2"
           ></v-text-field>
-          <v-textarea v-model="formData.notes" label="Примечание" rows="2"></v-textarea>
+          <v-textarea v-model="formData.note" label="Примечание" rows="2"></v-textarea>
         </v-form>
       </v-card-text>
       <v-card-actions>
@@ -37,7 +37,7 @@ const formRef = ref<any>(null)
 
 const formData = reactive({
   doc_name: '',
-  notes: '', // Примечание тоже можно редактировать, если нужно
+  note: '',
 })
 
 watch(
@@ -45,7 +45,7 @@ watch(
   (newItem) => {
     if (newItem) {
       formData.doc_name = newItem.doc_name
-      // formData.notes = newItem.note; // Если в AssignedNumber будет note
+      formData.note = newItem.note || ''
     }
   },
 )
@@ -54,7 +54,7 @@ async function save() {
   if (!props.item) return
   const { valid } = await formRef.value.validate()
   if (valid) {
-    emit('save', { id: props.item.doc_no, payload: formData })
+    emit('save', { id: props.item.id, payload: formData })
   }
 }
 

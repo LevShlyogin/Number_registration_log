@@ -131,7 +131,7 @@ function handleReserve() {
   reserve(
     {
       equipment_id: Number(props.equipmentId),
-      quantity: quantity.value,
+      requested_count: quantity.value,
     },
     {
       onSuccess: (data: ReserveNumbersOut) => {

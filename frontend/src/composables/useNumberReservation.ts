@@ -21,7 +21,7 @@ export function useNumberReservation() {
     mutate: reserve,
     isPending: isLoading,
     error: reserveError,
-  } = useMutation({
+  } = useMutation<ReserveNumbersOut, Error, ReserveNumbersIn>({
     mutationFn: reserveNumbers,
   })
 
@@ -29,7 +29,7 @@ export function useNumberReservation() {
     mutate: reserveSpecific,
     isPending: isReservingSpecific,
     error: reserveSpecificError,
-  } = useMutation({
+  } = useMutation<ReserveNumbersOut, Error, AdminReserveSpecific>({
     mutationFn: reserveSpecificNumbers,
   })
 

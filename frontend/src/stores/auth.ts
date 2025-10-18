@@ -13,9 +13,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.is_admin ?? false)
+  const fullName = computed(() => user.value?.username || 'Загрузка...')
 
   async function fetchUser() {
-    console.log('Fetching user data...')
+    if (user.value) return user.value
     try {
       const response = await apiClient.get<User>('/users/me')
       user.value = response.data
@@ -27,15 +28,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    user.value = null
-  }
-
   return {
     user,
     isAuthenticated,
     isAdmin,
+    fullName,
     fetchUser,
-    logout,
   }
 })

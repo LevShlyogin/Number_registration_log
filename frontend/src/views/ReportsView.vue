@@ -89,7 +89,7 @@ if (lastSessionId) {
   initialFilters = { session_id: lastSessionId }
 } else if (authStore.user) {
   // Иначе фильтруем по имени текущего пользователя
-  initialFilters = { username: authStore.user.login }
+  initialFilters = { username: authStore.user.username }
 }
 
 const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =

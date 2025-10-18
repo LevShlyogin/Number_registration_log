@@ -103,7 +103,7 @@
                 class="mt-4"
               >
                 <v-icon start icon="mdi-plus-box"></v-icon>
-                Назначить следующий номер
+                Назначить номер
               </v-btn>
             </v-form>
           </v-card-text>

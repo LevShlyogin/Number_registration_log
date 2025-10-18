@@ -18,7 +18,6 @@ RUN npm run build
 FROM nginx:1.27-alpine
 
 # Копируем кастомную конфигурацию Nginx
-# nginx.conf должен лежать рядом с этим Dockerfile
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Копируем собранные статические файлы из этапа 'builder'
