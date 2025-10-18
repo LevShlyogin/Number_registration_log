@@ -7,7 +7,7 @@ from datetime import datetime
 class DocumentAssignOne(BaseModel):
     session_id: str
     doc_name: str = Field(min_length=1)
-    note: str = Field(min_length=1)
+    note: str | None = None
 
 
 class DocumentOut(BaseModel):

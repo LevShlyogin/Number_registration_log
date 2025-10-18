@@ -103,7 +103,7 @@
                 class="mt-4"
               >
                 <v-icon start icon="mdi-plus-box"></v-icon>
-                Назначить номер
+                Назначить номер {{ numberToAssign }}
               </v-btn>
             </v-form>
           </v-card-text>
@@ -135,7 +135,13 @@
                   <div v-if="filteredFreeNumbers.length === 0" class="empty-state">
                     <v-chip color="grey-lighten-2" size="small">Пусто</v-chip>
                   </div>
-                  <v-chip v-for="num in filteredFreeNumbers" :key="num" label size="small">
+                  <v-chip
+                    v-for="num in filteredFreeNumbers"
+                    :key="num"
+                    label
+                    size="small"
+                    class="ma-1"
+                  >
                     {{ num }}
                   </v-chip>
                 </v-sheet>
@@ -240,11 +246,7 @@ import { useNotifier } from '@/composables/useNotifier'
 
 const suggestions = useDocNameSuggestions()
 const notifier = useNotifier()
-
-const props = defineProps<{
-  sessionId: string
-}>()
-
+const props = defineProps<{ sessionId: string }>()
 const router = useRouter()
 const wizardStore = useWizardStore()
 const { assignedNumbers, isLoadingAssigned, assignNumber, isAssigning, updateNumber, isUpdating } =
@@ -255,11 +257,7 @@ const selectedItemForEdit = ref<AssignedNumber | null>(null)
 const rightTab = ref<'free' | 'assigned'>('free')
 
 const formRef = ref<InstanceType<typeof VForm> | null>(null)
-const formData = reactive({
-  doc_name: '',
-  note: '',
-})
-
+const formData = reactive({ doc_name: '', note: '' })
 const rules = {
   required: (value: string) => (!!value && value.trim().length > 0) || 'Это поле обязательно.',
 }

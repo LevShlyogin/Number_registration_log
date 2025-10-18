@@ -7,8 +7,8 @@ from app.core.db import lifespan_session
 from app.core.auth import get_current_user, CurrentUser
 from app.services.admin import AdminService
 from app.services.reservation import ReservationService
-from app.core.config import settings
-from app.schemas.admin import GoldenSuggestOut, AdminReserveSpecific  # Импортируем схемы
+from app.schemas.admin import GoldenSuggestOut, AdminReserveSpecific
+from app.schemas.sessions import ReserveResult
 
 router = APIRouter()
 
@@ -37,9 +37,9 @@ async def golden_suggest(
     return GoldenSuggestOut(golden_numbers=nums)
 
 
-@router.post("/reserve-specific", response_model=dict)
+@router.post("/reserve-specific", response_model=ReserveResult)
 async def reserve_specific(
-        payload: AdminReserveSpecific,  # <--- Принимаем Pydantic модель (JSON)
+        payload: AdminReserveSpecific,
         session: AsyncSession = Depends(lifespan_session),
         user: CurrentUser = Depends(get_current_user),
 ):

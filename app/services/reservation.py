@@ -18,7 +18,8 @@ class ReservationService:
         self.numbers_repo = DocNumbersRepository(session)
         self.counter_repo = CounterRepository(session)
 
-    async def start_session(self, *, user_id: int, equipment_id: int, requested_count: int, ttl_seconds: int) -> tuple[str, list[int]]:
+    async def start_session(self, *, user_id: int, equipment_id: int, requested_count: int, ttl_seconds: int) -> tuple[
+        str, list[int]]:
         # создаем сессию
         sess = await self.sessions_repo.create(
             user_id=user_id, equipment_id=equipment_id, requested_count=requested_count, ttl_seconds=ttl_seconds
@@ -30,7 +31,8 @@ class ReservationService:
         await self.session.commit()
         return sess.id, reserved
 
-    async def _reserve_for_session(self, *, session_id: str, user_id: int, count: int, is_admin: bool, ttl_seconds: int) -> list[int]:
+    async def _reserve_for_session(self, *, session_id: str, user_id: int, count: int, is_admin: bool,
+                                   ttl_seconds: int) -> list[int]:
         await self.numbers_repo.release_expired()
         counter = await self.counter_repo.get_for_update()
         base_start = counter.base_start
@@ -65,15 +67,19 @@ class ReservationService:
 
         return sorted(reserved_total)
 
-    async def admin_reserve_specific(self, *, user_id: int, equipment_id: int, numbers: list[int], ttl_seconds: int) -> str:
+    async def admin_reserve_specific(self, *, user_id: int, equipment_id: int, numbers: list[int], ttl_seconds: int) -> \
+    tuple[str, list[int]]:
         sess = await self.sessions_repo.create(
             user_id=user_id, equipment_id=equipment_id, requested_count=len(numbers), ttl_seconds=ttl_seconds
         )
         await self.numbers_repo.release_expired()
-        await self.counter_repo.get_for_update()  # держим блокировку на счетчике ради консистентности, хотя не обязательно
+        await self.counter_repo.get_for_update()
         reserved = await self.numbers_repo.reserve_specific_numbers(numbers, user_id, sess.id, ttl_seconds)
+        if not reserved:
+            await self.session.rollback()
+            raise ValueError("Не удалось зарезервировать ни один из указанных номеров (возможно, они уже заняты).")
         await self.session.commit()
-        return sess.id
+        return sess.id, reserved
 
     async def cancel_session(self, session_id: str) -> int:
         await self.sessions_repo.set_status(session_id, SessionStatus.cancelled)
