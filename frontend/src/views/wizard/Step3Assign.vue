@@ -306,24 +306,22 @@ async function handleAssign() {
   const { valid } = await formRef.value.validate()
 
   if (valid && wizardStore.currentSessionId) {
-    assignNumber(
-      {
-        session_id: wizardStore.currentSessionId,
-        doc_name: formData.doc_name.trim(),
-        note: formData.note.trim(),
+    const payload = {
+      session_id: wizardStore.currentSessionId,
+      doc_name: formData.doc_name.trim(),
+      note: formData.note ? formData.note.trim() : null,
+    }
+    assignNumber(payload, {
+      onSuccess: (response) => {
+        notifier.success(`Номер ${response.created.formatted_no} назначен!`)
+        resetForm()
+        suggestions.searchQuery.value = ''
+        rightTab.value = 'assigned'
       },
-      {
-        onSuccess: (response) => {
-          notifier.success(`Номер ${response.created.formatted_no} назначен!`)
-          resetForm()
-          suggestions.searchQuery.value = ''
-          rightTab.value = 'assigned'
-        },
-        onError: (e) => {
-          notifier.error(`Ошибка назначения: ${(e as Error).message}`)
-        },
+      onError: (e) => {
+        notifier.error(`Ошибка назначения: ${(e as Error).message}`)
       },
-    )
+    })
   }
 }
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
@@ -28,6 +28,13 @@ async def assign_one(
             session_id=payload.session_id, user_id=user.id,
             doc_name=payload.doc_name, note=payload.note, is_admin=user.is_admin
         )
+
+        if result_dict.get("created") is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result_dict.get("message", "Не удалось назначить номер.")
+            )
+
         created_info = CreatedDocumentInfo.model_validate(result_dict['created'])
         response_obj = AssignNumberOut(created=created_info, message=result_dict['message'])
         return response_obj.model_dump()

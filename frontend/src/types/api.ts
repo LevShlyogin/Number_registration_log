@@ -41,7 +41,7 @@ export interface AdminReserveSpecific {
 export interface AssignNumberIn {
   session_id: string
   doc_name: string
-  note: string
+  note: string | null
 }
 
 // Структура объекта 'created'
