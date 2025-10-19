@@ -10,14 +10,16 @@ from alembic import context
 
 from app.core.config import settings
 from app.models.base import Base  # noqa: F401
-from app.models import user, equipment, counter, session, doc_number, document, audit  # noqa: F401
+from app.models import user, equipment, counter, session, doc_number, document, audit
 
 # this is the Alembic Config object
 config = context.config
+
 if settings.database_url:
     config.set_main_option("sqlalchemy.url", settings.database_url)
 
-fileConfig(config.config_file_name)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
