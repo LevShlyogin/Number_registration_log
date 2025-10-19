@@ -123,7 +123,7 @@ class ReportsService:
                                                     date_from, date_to, eq_type, doc_name=doc_name)
         payload = []
         for (
-                id_, numeric, reg_date, doc_name, note, eq_type, factory_no, order_no, label, station_no,
+                id_, numeric, reg_date, doc_name, note, eq_id, eq_type, factory_no, order_no, label, station_no,
                 station_object, username,
         ) in rows:
             payload.append({
@@ -132,6 +132,7 @@ class ReportsService:
                 "reg_date": reg_date.strftime('%d.%m.%Y %H:%M') if reg_date else '',
                 "doc_name": doc_name,
                 "note": note,
+                "eq_id": eq_id,
                 "eq_type": eq_type,
                 "factory_no": factory_no,
                 "order_no": order_no,
