@@ -243,11 +243,13 @@ import { useDocNameSuggestions } from '@/composables/useSuggestions'
 import EditAssignedDialog from '@/components/wizard/EditAssignedDialog.vue'
 import type { AssignedNumber, DocumentUpdatePayload } from '@/types/api'
 import { useNotifier } from '@/composables/useNotifier'
+import { useAuthStore } from '@/stores/auth'
 
 const suggestions = useDocNameSuggestions()
 const notifier = useNotifier()
 const props = defineProps<{ sessionId: string }>()
 const router = useRouter()
+const auth = useAuthStore()
 const wizardStore = useWizardStore()
 const { assignedNumbers, isLoadingAssigned, assignNumber, isAssigning, updateNumber, isUpdating } =
   useNumberAssignment(props.sessionId)
@@ -264,9 +266,15 @@ const rules = {
 
 const assignedCount = computed(() => assignedNumbers.value?.length ?? 0)
 
+const isGolden = (num: number) => num % 100 === 0
+
 const freeNumbers = computed<number[]>(() => {
   const assignedSet = new Set(assignedNumbers.value?.map((item) => item.numeric) ?? [])
-  return wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
+  const allFree = wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
+  if (!auth.isAdmin) {
+    return allFree.filter(num => !isGolden(num))
+  }
+  return allFree
 })
 
 const numberToAssign = computed<number | null>(() => {

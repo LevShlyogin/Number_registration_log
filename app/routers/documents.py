@@ -22,17 +22,22 @@ async def assign_one(
         user: CurrentUser = Depends(get_current_user),
 ):
     svc = DocumentsService(session)
-
     try:
         result_dict = await svc.assign_one(
-            session_id=payload.session_id, user_id=user.id,
-            doc_name=payload.doc_name, note=payload.note, is_admin=user.is_admin
+            session_id=payload.session_id,
+            user_id=user.id,
+            doc_name=payload.doc_name,
+            note=payload.note,
+            is_admin=user.is_admin
         )
 
         if result_dict.get("created") is None:
+            message = result_dict.get("message", "Не удалось назначить номер.")
+            status_code = status.HTTP_403_FORBIDDEN if "ХХХХ00" in message else status.HTTP_400_BAD_REQUEST
+
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result_dict.get("message", "Не удалось назначить номер.")
+                status_code=status_code,
+                detail=message
             )
 
         created_info = CreatedDocumentInfo.model_validate(result_dict['created'])
@@ -40,7 +45,7 @@ async def assign_one(
         return response_obj.model_dump()
 
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.patch("/{document_id}", response_model=dict)
