@@ -39,7 +39,7 @@ def clean_param(p: str | None) -> str | None:
     return stripped if stripped else None
 
 
-@router.get("", response_model=List[ReportRowOut])
+@router.get("", response_model=list[ReportRowOut])
 async def get_report(
         station_object: list[str] | None = Query(default=None),
         station_no: str | None = Query(default=None),

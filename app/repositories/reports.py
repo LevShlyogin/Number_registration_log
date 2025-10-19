@@ -47,7 +47,9 @@ class ReportsRepository:
         res = await self.session.execute(stmt)
         return res.fetchall()
 
-    async def fetch_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, date_from, date_to, doc_name: str | None, username: str | None):
+    async def fetch_extended(self, station_objects: list[str] | None, station_no: str | None, label: str | None,
+                             factory_no: str | None, order_no: str | None, date_from, date_to, doc_name: str | None,
+                             username: str | None):
         stmt = (
             select(
                 Document.numeric, Document.reg_date, Document.doc_name, Document.note,
@@ -76,11 +78,14 @@ class ReportsRepository:
         stmt = stmt.order_by(Document.reg_date.asc(), Document.numeric.asc())
         res = await self.session.execute(stmt)
         return res.fetchall()
-    
-    async def fetch_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None, factory_no: str | None, order_no: str | None, username: str | None, date_from, date_to, eq_type: str | None, doc_name: str | None):
+
+    async def fetch_extended_admin(self, station_objects: list[str] | None, station_no: str | None, label: str | None,
+                                   factory_no: str | None, order_no: str | None, username: str | None, date_from,
+                                   date_to, eq_type: str | None, doc_name: str | None):
         stmt = (
             select(
                 Document.id, Document.numeric, Document.reg_date, Document.doc_name, Document.note,
+                Equipment.id.label('eq_id'),
                 Equipment.eq_type, Equipment.factory_no, Equipment.order_no,
                 Equipment.label, Equipment.station_no, Equipment.station_object,
                 User.username,
@@ -101,7 +106,7 @@ class ReportsRepository:
         if station_no: where.append(Equipment.station_no == station_no)
         if factory_no: where.append(Equipment.factory_no == factory_no)
         if order_no: where.append(Equipment.order_no == order_no)
-        
+
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
         if eq_type: where.append(Equipment.eq_type == eq_type)

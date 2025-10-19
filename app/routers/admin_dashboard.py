@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Form, Request, Query
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
 
-from app.core.db import lifespan_session
 from app.core.auth import get_current_user, CurrentUser
-from app.services.admin import AdminService
-from app.services.reservation import ReservationService
-from app.services.reports import ReportsService
+from app.core.db import lifespan_session
 from app.services.equipment import EquipmentService
-from app.core.config import settings
-from app.schemas.admin import GoldenSuggestOut
+from app.services.reports import ReportsService
 
 router = APIRouter(prefix="/admin-dashboard", tags=["admin-dashboard"])
 

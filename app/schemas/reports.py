@@ -31,6 +31,7 @@ class ReportRow(BaseModel):
 class ReportRowOut(BaseModel):
     """Схема для одной строки отчета, как она возвращается API."""
     doc_no: str
+    numeric: int
     reg_date: str
     doc_name: str
     note: str | None
@@ -41,3 +42,6 @@ class ReportRowOut(BaseModel):
     station_no: str | None
     station_object: str | None
     username: str
+
+    class Config:
+        from_attributes = True

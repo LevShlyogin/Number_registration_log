@@ -46,16 +46,16 @@ async def reserve_specific(
 ):
     """Резервирует конкретные номера для оборудования (только для админов)."""
     if not user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
 
     svc = ReservationService(session)
     try:
-        session_id = await svc.admin_reserve_specific(
+        session_id, reserved_numbers = await svc.admin_reserve_specific(
             user_id=user.id,
             equipment_id=payload.equipment_id,
             numbers=payload.numbers,
             ttl_seconds=settings.default_ttl_seconds
         )
-        return {"session_id": session_id}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        return ReserveResult(session_id=session_id, reserved_numbers=reserved_numbers)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

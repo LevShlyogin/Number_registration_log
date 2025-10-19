@@ -9,28 +9,29 @@ from app.core.auth import get_current_user, CurrentUser
 from app.services.documents import DocumentsService
 from app.schemas.admin import AdminDocumentUpdate
 from app.schemas.documents import DocumentAssignOne
+from app.schemas.responses import AssignNumberOut, CreatedDocumentInfo
 from app.utils.numbering import format_doc_no
 
 router = APIRouter()
 
 
-@router.post("/assign-one", response_model=dict)
+@router.post("/assign-one", response_model=AssignNumberOut)
 async def assign_one(
         payload: DocumentAssignOne,
         session: AsyncSession = Depends(lifespan_session),
         user: CurrentUser = Depends(get_current_user),
 ):
-    """Назначает один номер из сессии. Всегда возвращает JSON."""
     svc = DocumentsService(session)
+
     try:
-        res = await svc.assign_one(
-            session_id=payload.session_id,
-            user_id=user.id,
-            doc_name=payload.doc_name,
-            note=payload.note,
-            is_admin=user.is_admin
+        result_dict = await svc.assign_one(
+            session_id=payload.session_id, user_id=user.id,
+            doc_name=payload.doc_name, note=payload.note, is_admin=user.is_admin
         )
-        return res
+        created_info = CreatedDocumentInfo.model_validate(result_dict['created'])
+        response_obj = AssignNumberOut(created=created_info, message=result_dict['message'])
+        return response_obj.model_dump()
+
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
