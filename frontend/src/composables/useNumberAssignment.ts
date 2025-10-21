@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import apiClient from '@/api'
 import type {
   AssignNumberIn,
   AssignNumberOut,
@@ -6,11 +7,10 @@ import type {
   DocumentUpdatePayload,
 } from '@/types/api'
 
-// --- API-функции ---
-
 const fetchAssignedNumbers = async (sessionId: string): Promise<AssignedNumber[]> => {
-  console.log('Fetching assigned numbers for session:', sessionId)
-  await new Promise((resolve) => setTimeout(resolve, 400))
+  console.warn(
+    `API for fetching assigned numbers for session ${sessionId} does not exist. Using cache.`,
+  )
   return []
 }
 
@@ -21,43 +21,19 @@ const updateAssignedNumber = async ({
   id: number
   payload: Partial<DocumentUpdatePayload>
 }) => {
-  console.log(`Updating assigned number ${id} with:`, payload)
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  return { ...payload, doc_no: id }
+  const { data } = await apiClient.patch(`/documents/${id}`, payload)
+  return { id, ...payload, ...data }
 }
 
-// Тип для полезной нагрузки мутации
-interface AssignNumberPayload {
-  data: AssignNumberIn
-  nextNumberToAssign: number
-}
-
-// Назначение следующего свободного номера
-const assignNextNumber = async (payload: AssignNumberPayload): Promise<AssignNumberOut> => {
-  const { data, nextNumberToAssign } = payload
-
-  // --- ЗАГЛУШКА API ---
-  console.log('Assigning next number with payload:', data, 'and number:', nextNumberToAssign)
-  await new Promise((resolve) => setTimeout(resolve, 600))
-
-  const mockResponse: AssignNumberOut = {
-    session_id: data.session_id,
-    doc_no: nextNumberToAssign,
-    doc_name: data.doc_name,
-    notes: payload.data.notes,
-    created: new Date().toISOString(),
-    user: 'yuaalekseeva',
-  }
-  console.log('Mock response for assignment:', mockResponse)
-  return mockResponse
-  // --- КОНЕЦ ЗАГЛУШКИ ---
+const assignNextNumber = async (payload: AssignNumberIn): Promise<AssignNumberOut> => {
+  const { data } = await apiClient.post<AssignNumberOut>('/documents/assign-one', payload)
+  return data
 }
 
 export function useNumberAssignment(sessionId: string) {
   const queryClient = useQueryClient()
   const queryKey = ['assignedNumbers', sessionId]
 
-  // Query для получения списка назначенных номеров
   const {
     data: assignedNumbers,
     isLoading: isLoadingAssigned,
@@ -66,23 +42,26 @@ export function useNumberAssignment(sessionId: string) {
     queryKey,
     queryFn: () => fetchAssignedNumbers(sessionId),
     enabled: !!sessionId,
+    initialData: [],
   })
 
   const {
     mutate: assignNumber,
     isPending: isAssigning,
-    isError: isErrorAssigning,
     error: errorAssigning,
-  } = useMutation<AssignNumberOut, Error, AssignNumberPayload>({
+  } = useMutation<AssignNumberOut, Error, AssignNumberIn>({
     mutationFn: assignNextNumber,
-    onSuccess: (newlyAssignedNumber) => {
-      queryClient.setQueryData<AssignedNumber[]>(queryKey, (oldData) => {
+    onSuccess: (response) => {
+      queryClient.setQueryData<AssignedNumber[]>(queryKey, (oldData = []) => {
+        const { created } = response
         const newEntry: AssignedNumber = {
-          doc_no: newlyAssignedNumber.doc_no,
-          doc_name: newlyAssignedNumber.doc_name,
-          notes: (newlyAssignedNumber as any).notes,
+          id: created.id,
+          numeric: created.numeric,
+          formatted_no: created.formatted_no,
+          doc_name: created.doc_name,
+          note: created.note,
         }
-        return oldData ? [...oldData, newEntry] : [newEntry]
+        return [...oldData, newEntry]
       })
     },
   })
@@ -90,13 +69,9 @@ export function useNumberAssignment(sessionId: string) {
   const { mutate: updateNumber, isPending: isUpdating } = useMutation({
     mutationFn: updateAssignedNumber,
     onSuccess: (updatedData) => {
-      queryClient.setQueryData<AssignedNumber[]>(queryKey, (oldData) => {
-        return (
-          oldData?.map((item) =>
-            item.doc_no === updatedData.doc_no
-              ? { ...item, doc_name: updatedData.doc_name! }
-              : item,
-          ) ?? []
+      queryClient.setQueryData<AssignedNumber[]>(queryKey, (oldData = []) => {
+        return oldData.map((item) =>
+          item.id === updatedData.id ? { ...item, ...updatedData } : item,
         )
       })
     },
@@ -105,7 +80,6 @@ export function useNumberAssignment(sessionId: string) {
   return {
     assignedNumbers,
     isLoadingAssigned,
-    isErrorAssigning,
     errorAssigning,
     assignNumber,
     isAssigning,

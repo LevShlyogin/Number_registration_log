@@ -16,7 +16,7 @@
               <v-col cols="12">
                 <v-select
                   v-model="formData.eq_type"
-                  :items="['Турбина', 'Насос', 'Вспомогательное оборудование']"
+                  :items="['Турбина', 'Вспомогательное оборудование']"
                   label="Тип оборудования*"
                   :rules="[rules.required]"
                   required

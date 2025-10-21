@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-0">
-    <v-sheet class="pa-3 border-b rounded-b-0 summary-bar">
+    <v-sheet class="pa-3 border-b rounded-b-0 summary-bar" color="surface">
       <div class="d-flex flex-wrap align-center justify-space-between gap-3">
         <h3 class="text-h6 font-weight-medium mb-0">Шаг 3: Назначение номеров</h3>
 
@@ -80,7 +80,7 @@
               </v-combobox>
 
               <v-textarea
-                v-model="formData.notes"
+                v-model="formData.note"
                 label="Примечание"
                 rows="3"
                 :disabled="isAssigning || freeNumbers.length === 0"
@@ -90,19 +90,6 @@
                 density="comfortable"
                 auto-grow
                 class="mb-4"
-              />
-
-              <v-autocomplete
-                v-model="selectedFreeNumber"
-                :items="freeNumbers"
-                :disabled="isAssigning || freeNumbers.length === 0"
-                label="Выбрать конкретный свободный номер"
-                placeholder="Необязательно"
-                clearable
-                variant="outlined"
-                hide-details="auto"
-                density="comfortable"
-                class="mb-2"
               />
 
               <v-btn
@@ -153,9 +140,6 @@
                     :key="num"
                     label
                     size="small"
-                    :variant="selectedFreeNumber === num ? 'flat' : 'tonal'"
-                    :color="selectedFreeNumber === num ? 'primary' : 'default'"
-                    @click="toggleSelectFreeNumber(num)"
                     class="ma-1"
                   >
                     {{ num }}
@@ -180,7 +164,7 @@
                   :headers="assignedHeaders"
                   :items="filteredAssigned"
                   :items-per-page="-1"
-                  item-value="doc_no"
+                  item-value="id"
                   density="compact"
                   no-data-text="Пока пусто"
                   :loading="isLoadingAssigned"
@@ -189,23 +173,11 @@
                   class="assigned-table"
                 >
                   <template #[`item.doc_name`]="{ item }">
-                    <v-tooltip :text="item.doc_name" location="top">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="truncate-text">
-                          {{ item.doc_name }}
-                        </div>
-                      </template>
-                    </v-tooltip>
+                    <div class="truncate-text">{{ item.doc_name }}</div>
                   </template>
 
-                  <template #[`item.notes`]="{ item }">
-                    <v-tooltip :text="item.notes" location="top" v-if="item.notes">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="truncate-text">
-                          {{ item.notes }}
-                        </div>
-                      </template>
-                    </v-tooltip>
+                  <template #[`item.note`]="{ item }">
+                    <div v-if="item.note" class="truncate-text">{{ item.note }}</div>
                     <span v-else class="text-medium-emphasis">—</span>
                   </template>
 
@@ -215,7 +187,6 @@
                       variant="text"
                       size="x-small"
                       @click="openEditDialog(item)"
-                      :aria-label="'Редактировать ' + item.doc_no"
                     />
                   </template>
 
@@ -252,6 +223,7 @@
       </v-btn>
     </div>
 
+    <!-- Диалог редактирования -->
     <edit-assigned-dialog
       v-model="isEditDialogOpen"
       :item="selectedItemForEdit"
@@ -262,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { VForm } from 'vuetify/components'
 import { useWizardStore } from '@/stores/wizard'
@@ -271,15 +243,13 @@ import { useDocNameSuggestions } from '@/composables/useSuggestions'
 import EditAssignedDialog from '@/components/wizard/EditAssignedDialog.vue'
 import type { AssignedNumber, DocumentUpdatePayload } from '@/types/api'
 import { useNotifier } from '@/composables/useNotifier'
+import { useAuthStore } from '@/stores/auth'
 
 const suggestions = useDocNameSuggestions()
 const notifier = useNotifier()
-
-const props = defineProps<{
-  sessionId: string
-}>()
-
+const props = defineProps<{ sessionId: string }>()
 const router = useRouter()
+const auth = useAuthStore()
 const wizardStore = useWizardStore()
 const { assignedNumbers, isLoadingAssigned, assignNumber, isAssigning, updateNumber, isUpdating } =
   useNumberAssignment(props.sessionId)
@@ -289,29 +259,29 @@ const selectedItemForEdit = ref<AssignedNumber | null>(null)
 const rightTab = ref<'free' | 'assigned'>('free')
 
 const formRef = ref<InstanceType<typeof VForm> | null>(null)
-const formData = reactive({
-  doc_name: '',
-  notes: '',
-})
-
+const formData = reactive({ doc_name: '', note: '' })
 const rules = {
   required: (value: string) => (!!value && value.trim().length > 0) || 'Это поле обязательно.',
 }
 
 const assignedCount = computed(() => assignedNumbers.value?.length ?? 0)
 
+const isGolden = (num: number) => num % 100 === 0
+
 const freeNumbers = computed<number[]>(() => {
-  const assignedSet = new Set(assignedNumbers.value?.map((item) => item.doc_no) ?? [])
-  return wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
+  const assignedSet = new Set(assignedNumbers.value?.map((item) => item.numeric) ?? [])
+  const allFree = wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
+  if (!auth.isAdmin) {
+    return allFree.filter(num => !isGolden(num))
+  }
+  return allFree
 })
 
-const nextFreeNumber = computed<number | null>(() => {
+const numberToAssign = computed<number | null>(() => {
   return freeNumbers.value.length > 0 ? freeNumbers.value[0] : null
 })
 
-const selectedFreeNumber = ref<number | null>(null)
 const searchFree = ref('')
-
 const filteredFreeNumbers = computed<number[]>(() => {
   const list = freeNumbers.value
   const q = searchFree.value?.toString().trim()
@@ -319,20 +289,13 @@ const filteredFreeNumbers = computed<number[]>(() => {
   return list.filter((n) => n.toString().includes(q))
 })
 
-watch(freeNumbers, (list) => {
-  if (selectedFreeNumber.value !== null && !list.includes(selectedFreeNumber.value)) {
-    selectedFreeNumber.value = null
-  }
-})
-
 const searchAssigned = ref('')
-
 const filteredAssigned = computed<AssignedNumber[]>(() => {
   const list = assignedNumbers.value ?? []
   const q = searchAssigned.value?.toString().trim().toLowerCase()
   if (!q) return list
   return list.filter((item) => {
-    const haystack = [item.doc_no?.toString() ?? '', item.doc_name ?? '', item.notes ?? '']
+    const haystack = [item.numeric.toString(), item.doc_name, item.note ?? '']
       .join(' ')
       .toLowerCase()
     return haystack.includes(q)
@@ -340,53 +303,42 @@ const filteredAssigned = computed<AssignedNumber[]>(() => {
 })
 
 const assignedHeaders = [
-  { title: '№', key: 'doc_no', sortable: true, width: '20%' },
+  { title: '№', key: 'formatted_no', sortable: true, width: '20%' },
   { title: 'Документ', key: 'doc_name', sortable: true, width: '40%' },
-  { title: 'Примечание', key: 'notes', sortable: false, width: '25%' },
+  { title: 'Примечание', key: 'note', sortable: false, width: '25%' },
   { title: 'Ред.', key: 'actions', sortable: false, align: 'end', width: '15%' },
 ] as const
-
-const numberToAssign = computed(() => selectedFreeNumber.value ?? nextFreeNumber.value)
 
 async function handleAssign() {
   if (!formRef.value) return
   const { valid } = await formRef.value.validate()
 
-  if (valid && wizardStore.currentSessionId && numberToAssign.value !== null) {
-    assignNumber(
-      {
-        data: {
-          session_id: wizardStore.currentSessionId,
-          doc_name: formData.doc_name.trim(),
-          notes: formData.notes,
-        },
-        nextNumberToAssign: numberToAssign.value,
+  if (valid && wizardStore.currentSessionId) {
+    const payload = {
+      session_id: wizardStore.currentSessionId,
+      doc_name: formData.doc_name.trim(),
+      note: formData.note ? formData.note.trim() : null,
+    }
+    assignNumber(payload, {
+      onSuccess: (response) => {
+        notifier.success(`Номер ${response.created.formatted_no} назначен!`)
+        resetForm()
+        suggestions.searchQuery.value = ''
+        rightTab.value = 'assigned'
       },
-      {
-        onSuccess: () => {
-          resetForm()
-          selectedFreeNumber.value = null // También limpiar el número seleccionado manualmente
-          suggestions.searchQuery.value = ''
-          rightTab.value = 'assigned'
-        },
+      onError: (e) => {
+        notifier.error(`Ошибка назначения: ${(e as Error).message}`)
       },
-    )
+    })
   }
 }
 
 function resetForm() {
   formRef.value?.reset()
 }
-function toggleSelectFreeNumber(num: number) {
-  if (selectedFreeNumber.value === num) {
-    selectedFreeNumber.value = null
-  } else {
-    selectedFreeNumber.value = num
-  }
-}
 
 function openEditDialog(item: AssignedNumber) {
-  selectedItemForEdit.value = item
+  selectedItemForEdit.value = { ...item }
   isEditDialogOpen.value = true
 }
 
@@ -406,14 +358,7 @@ function handleUpdate({ id, payload }: { id: number; payload: Partial<DocumentUp
 }
 
 function goBack() {
-  if (wizardStore.selectedEquipmentId) {
-    router.push({
-      name: 'wizard-reserve',
-      params: { equipmentId: wizardStore.selectedEquipmentId },
-    })
-  } else {
-    router.push({ name: 'wizard-equipment' })
-  }
+  router.back()
 }
 
 function complete() {
@@ -444,7 +389,6 @@ function complete() {
   position: sticky;
   top: 64px;
   z-index: 2;
-  background: rgb(var(--v-theme-surface));
 }
 
 .free-grid {

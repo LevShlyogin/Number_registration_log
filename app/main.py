@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter
 
 from app.routers import equipment, sessions, documents, admin, reports, suggest, importer, ui, wizard, admin_dashboard
 from app.core.db import SessionLocal

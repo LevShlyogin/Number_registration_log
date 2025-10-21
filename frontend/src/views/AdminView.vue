@@ -87,8 +87,15 @@ const headers = [
 ] as const
 
 const notifier = useNotifier()
-const { documents, isLoading, tableOptions, filters, saveDocument, fetchAllAdminItemsForExport } =
-  useAdmin()
+const {
+  documents,
+  isLoading,
+  tableOptions,
+  filters,
+  saveDocument,
+  fetchAllAdminItemsForExport,
+  resetFilters,
+} = useAdmin()
 
 const isEditDialogOpen = ref(false)
 const selectedDocument = ref<AdminDocumentRow | null>(null)
@@ -145,12 +152,5 @@ async function exportToExcel() {
   } finally {
     isExporting.value = false
   }
-}
-
-function resetFilters() {
-  for (const key in filters) {
-    filters[key] = undefined
-  }
-  tableOptions.value.page = 1
 }
 </script>

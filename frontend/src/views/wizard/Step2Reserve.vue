@@ -106,6 +106,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNumberReservation } from '@/composables/useNumberReservation'
 import { useNotifier } from '@/composables/useNotifier'
 import type { ReserveNumbersOut } from '@/types/api'
+import { AxiosError } from 'axios'
 
 const props = defineProps<{ equipmentId: string }>()
 
@@ -122,6 +123,16 @@ const rules = {
   positive: (value: number) => value > 0 || 'Количество должно быть больше нуля.',
 }
 
+function handleApiError(error: unknown) {
+  let message = 'Произошла неизвестная ошибка'
+  if (error instanceof AxiosError && error.response?.data?.detail) {
+    message = error.response.data.detail
+  } else if (error instanceof Error) {
+    message = error.message
+  }
+  notifier.error(message)
+}
+
 function handleReserve() {
   if (!quantity.value || quantity.value <= 0) {
     notifier.warning('Введите корректное количество номеров (больше нуля).')
@@ -131,7 +142,7 @@ function handleReserve() {
   reserve(
     {
       equipment_id: Number(props.equipmentId),
-      quantity: quantity.value,
+      requested_count: quantity.value,
     },
     {
       onSuccess: (data: ReserveNumbersOut) => {
@@ -142,7 +153,7 @@ function handleReserve() {
         notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)!`)
       },
       onError: (e) => {
-        notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
+        handleApiError(e)
       },
     },
   )
@@ -176,7 +187,7 @@ function handleReserveGolden() {
         goldenNumbersInput.value = ''
       },
       onError: (e) => {
-        notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
+        handleApiError(e)
       },
     },
   )

@@ -1,38 +1,62 @@
 services:
   db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-reg_journal}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    image: postgres:16-alpine
+    container_name: reg-journal-db
+    restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  api:
-    build: .
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reg-journal-backend
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+      - exported:/app/var/exports
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - APP_ENV=${APP_ENV:-dev}
-      - TZ=Europe/Moscow
-    labels:
-      - "log=enabled"
-      - "com.docker.compose.project=reg-journal"
-      - "com.docker.compose.service=api"
+      - APP_ENV=${APP_ENV}
+      - ADMIN_USERS=${ADMIN_USERS}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "8000:8000"
-    volumes:
-      - ./:/app
-      - exported:/app/var/exports
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: reg-journal-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
 
 volumes:
   pgdata:

@@ -1,53 +1,57 @@
 import { ref, reactive, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { SearchParams, ReportResponse, ReportItem } from '@/types/api'
+import apiClient from '@/api'
 
-// API-функция для получения ОДНОЙ страницы отчета (заглушка)
+// --- РЕАЛЬНЫЕ API ФУНКЦИИ ---
+
+/**
+ * Получает данные для отчета с сервера.
+ * @param params - Параметры фильтрации и пагинации.
+ */
 const fetchReport = async (params: SearchParams): Promise<ReportResponse> => {
-  console.log('Fetching report with params:', params)
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  // Убираем пустые/null значения, чтобы не передавать их в URL
+  const filteredParams = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v != null && v !== ''),
+  )
 
-  const totalItems = 123
-  const items: ReportItem[] = Array.from({ length: params.itemsPerPage || 10 }, (_, i) => {
-    const page = params.page || 1
-    const itemsPerPage = params.itemsPerPage || 10
-    const id = (page - 1) * itemsPerPage + i + 1
-    if (id > totalItems) return null
+  // Делаем реальный запрос к бэкенду
+  const { data } = await apiClient.get<ReportItem[]>('/reports', { params: filteredParams })
 
-    return {
-      id,
-      eq_type: 'Турбина',
-      station_object: `Мосэнерго ТЭЦ-${Math.floor(Math.random() * 20) + 1}`,
-      factory_no: String(Math.floor(10000 + Math.random() * 90000)),
-      station_no: `ст.${id}`,
-      label: `марк.${id}`,
-      doc_name: `Чертеж ${params.q || ''} ${id}`,
-      doc_no: 1000 + id,
-      user: params.username || 'yuaalekseeva',
-      created: new Date(Date.now() - i * 1000 * 3600 * 24).toISOString(),
-    }
-  }).filter(Boolean) as ReportItem[]
-
-  // Имитация фильтрации
-  if (params.session_id) {
-    console.log(`Filtering mock data by session_id: ${params.session_id}`)
-    return { totalItems: 3, items: items.slice(0, 3) }
-  }
-  if (params.username) {
-    console.log(`Filtering mock data by username: ${params.username}`)
-    return { totalItems, items }
-  }
-
-  return { totalItems, items }
+  // Бэкенд возвращает простой массив. Для пагинации v-data-table-server
+  // нам нужна структура { items, totalItems }.
+  // Так как бэкенд не возвращает общее количество, мы будем использовать
+  // длину полученного массива. Это означает, что пагинация будет работать
+  // только на клиенте для уже загруженных данных.
+  // Для настоящей серверной пагинации бэкенд должен возвращать `totalItems`.
+  return { items: data, totalItems: data.length }
 }
 
+/**
+ * Получает ВСЕ данные для экспорта, игнорируя пагинацию.
+ * @param params - Только параметры фильтрации.
+ */
+const fetchAllReportItemsForExport = async (
+  params: Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>,
+): Promise<ReportItem[]> => {
+  const filteredParams = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v != null && v !== ''),
+  )
+  const { data } = await apiClient.get<ReportItem[]>('/reports', { params: filteredParams })
+  return data
+}
+
+// --- КОМПОЗАБЛ ---
+
 export function useReports(initialFilters: Partial<SearchParams> = {}) {
+  // Состояние для настроек таблицы (пагинация, сортировка)
   const tableOptions = ref({
     page: 1,
     itemsPerPage: 10,
     sortBy: [],
   })
 
+  // Функция для создания объекта фильтров по умолчанию
   const createDefaultFilters = () => ({
     session_id: undefined,
     username: undefined,
@@ -63,50 +67,29 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
     q: '',
   })
 
+  // Реактивный объект с текущими значениями фильтров
   const filters = reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>({
     ...createDefaultFilters(),
     ...initialFilters,
   })
 
+  // Вычисляемое свойство, которое объединяет фильтры и опции таблицы
+  // в один объект для отправки на сервер.
   const queryParams = computed<SearchParams>(() => ({
     ...tableOptions.value,
     ...filters,
   }))
 
-  const { data, isLoading, isError, error, refetch } = useQuery<ReportResponse>({
-    queryKey: ['reports', queryParams],
+  // TanStack Query для получения и кэширования данных отчета
+  const { data, isLoading, isError, error } = useQuery<ReportResponse>({
+    queryKey: ['reports', queryParams], // Ключ кэша зависит от параметров
     queryFn: () => fetchReport(queryParams.value),
   })
 
-  const fetchAllReportItemsForExport = async (): Promise<ReportItem[]> => {
-    const exportParams = { ...filters }
-    console.log('Fetching ALL report items for export with filters:', exportParams)
-
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    const allItems: ReportItem[] = Array.from({ length: 123 }, (_, i) => ({
-      id: i + 1,
-      eq_type: 'Турбина',
-      station_object: `Мосэнерго ТЭЦ-${Math.floor(Math.random() * 20) + 1}`,
-      factory_no: String(Math.floor(10000 + Math.random() * 90000)),
-      station_no: `ст.${i + 1}`,
-      label: `марк.${i + 1}`,
-      doc_name: `Чертеж ${filters.q || ''} ${i + 1}`,
-      doc_no: 1000 + i + 1,
-      user: 'yuaalekseeva',
-      created: new Date(Date.now() - i * 1000 * 3600 * 24).toISOString(),
-    }))
-    return allItems.filter(
-      (item) =>
-        (!filters.station_object || item.station_object.includes(filters.station_object)) &&
-        (!filters.factory_no || item.factory_no?.includes(filters.factory_no)),
-    )
-  }
-
+  // Функция сброса фильтров к начальному состоянию
   const resetFilters = () => {
-    const defaultFilters = createDefaultFilters()
-    Object.assign(filters, defaultFilters)
-    Object.assign(filters, initialFilters)
-    tableOptions.value.page = 1
+    Object.assign(filters, createDefaultFilters(), initialFilters)
+    tableOptions.value.page = 1 // Сбрасываем на первую страницу
   }
 
   return {
@@ -116,8 +99,7 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
     error,
     tableOptions,
     filters,
-    refetch,
-    resetFiltersAndRefetch: resetFilters,
-    fetchAllReportItems: fetchAllReportItemsForExport,
+    resetFiltersAndRefetch: resetFilters, // Переименовано для ясности
+    fetchAllReportItemsForExport: () => fetchAllReportItemsForExport(filters), // Передаем текущие фильтры
   }
 }

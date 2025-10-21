@@ -14,20 +14,32 @@ from app.repositories.sessions import SessionsRepository
 
 logger = logging.getLogger(__name__)
 
+scheduler = AsyncIOScheduler()
+
 
 def start_scheduler(session_factory):
-    scheduler = AsyncIOScheduler()
+    if scheduler.running:
+        logger.warning("Scheduler is already running.")
+        return
+
     scheduler.add_job(
         _cleanup_expired,
         IntervalTrigger(seconds=60),
         args=[session_factory],
         id="cleanup-expired",
-        next_run_time=datetime.utcnow() + timedelta(seconds=60),
+        next_run_time=datetime.utcnow() + timedelta(seconds=10),
         max_instances=1,
         coalesce=True,
         replace_existing=True,
     )
     scheduler.start()
+    logger.info("Scheduler started.")
+
+
+def stop_scheduler():
+    if scheduler.running:
+        scheduler.shutdown()
+        logger.info("Scheduler shut down.")
 
 
 async def _cleanup_expired(session_factory):
@@ -44,10 +56,11 @@ async def _cleanup_expired(session_factory):
             await srepo.expire_old(now)
             await nrepo.release_expired(now)
             await session.commit()
+            logger.info("TTL cleanup job finished successfully.")
     except ProgrammingError as e:
         logger.warning("TTL cleanup skipped (DB not ready): %s", e)
-    except Exception as e:
-        logger.exception("TTL cleanup job failed: %s", e)
+    except Exception:
+        logger.exception("TTL cleanup job failed")
 
 
 async def _tables_exist(session: AsyncSession) -> bool:
@@ -55,5 +68,5 @@ async def _tables_exist(session: AsyncSession) -> bool:
         "select to_regclass('public.sessions') as s, to_regclass('public.doc_numbers') as d"
     )
     res = await session.execute(q)
-    s, d = res.fetchone()
+    s, d = res.fetchone() or (None, None)
     return bool(s and d)
