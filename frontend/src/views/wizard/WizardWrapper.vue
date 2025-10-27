@@ -75,7 +75,7 @@ const wizardStore = useWizardStore()
 const currentStepIndex = ref(1)
 
 const steps = [
-  { value: 1, title: 'Оборудование', subtitle: 'Поиск или создание' },
+  { value: 1, title: 'Объект', subtitle: 'Поиск или создание' },
   { value: 2, title: 'Резерв', subtitle: 'Получение номеров' },
   { value: 3, title: 'Назначение', subtitle: 'Привязка к документам' },
 ]

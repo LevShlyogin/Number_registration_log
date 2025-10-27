@@ -24,6 +24,7 @@
               variant="filled"
               flat
               hide-details="auto"
+              :rules="[rules.stationNo]"
             />
           </v-col>
           <v-col cols="12" md="6">
@@ -42,6 +43,7 @@
               variant="filled"
               flat
               hide-details="auto"
+              :rules="[rules.factoryNo]"
             />
           </v-col>
           <v-col cols="12">
@@ -58,7 +60,7 @@
           <v-btn type="submit" :loading="isLoading" color="primary" variant="flat" size="large">
             Поиск
           </v-btn>
-          <v-btn @click="showCreateForm" variant="text" size="large" class="ml-2">
+          <v-btn v-if="auth.isAdmin" @click="showCreateForm" color="primary" variant="outlined" size="large" class="ml-2">
             Создать новый объект
           </v-btn>
         </div>
@@ -167,9 +169,11 @@ import { useWizardStore } from '@/stores/wizard'
 import { useEquipmentSearch, type SearchParams } from '@/composables/useEquipmentSearch'
 import type { EquipmentOut } from '@/types/api'
 import EquipmentCreateDialog from '@/components/wizard/EquipmentCreateDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const wizardStore = useWizardStore()
+const auth = useAuthStore()
 
 const isCreateDialogVisible = ref(false)
 const searchAttempted = ref(false)
@@ -178,6 +182,11 @@ const formParams = reactive<SearchParams>({})
 const { results, isLoading, isError, error, search } = useEquipmentSearch()
 
 const displayedResults = ref<EquipmentOut[] | undefined>(undefined)
+
+const rules = {
+  factoryNo: (v: string) => !v || /^\d{1,5}$/.test(v) || 'Не более 5 цифр',
+  stationNo: (v: string) => !v || /^\d{1,2}$/.test(v) || 'Не более 2 цифр',
+}
 
 watch(results, (newResults) => {
   if (newResults) {

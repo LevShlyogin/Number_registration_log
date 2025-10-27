@@ -68,7 +68,7 @@
                 placeholder="Начните вводить для поиска или введите новое"
                 no-filter
                 density="comfortable"
-                class="mb-4"
+                class="doc-name-combobox mb-4"
               >
                 <template #no-data>
                   <v-list-item>
@@ -272,7 +272,7 @@ const freeNumbers = computed<number[]>(() => {
   const assignedSet = new Set(assignedNumbers.value?.map((item) => item.numeric) ?? [])
   const allFree = wizardStore.reservedNumbers.filter((num) => !assignedSet.has(num))
   if (!auth.isAdmin) {
-    return allFree.filter(num => !isGolden(num))
+    return allFree.filter((num) => !isGolden(num))
   }
   return allFree
 })
@@ -385,6 +385,10 @@ function complete() {
 </style>
 
 <style scoped>
+.doc-name-combobox :deep(input) {
+  cursor: text !important;
+}
+
 .summary-bar {
   position: sticky;
   top: 64px;

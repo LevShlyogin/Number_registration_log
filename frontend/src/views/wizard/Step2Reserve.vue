@@ -41,7 +41,7 @@
             <v-text-field
               v-model="goldenNumbersInput"
               label="Номера через запятую"
-              placeholder="1000, 2000, 3000"
+              placeholder="NNNN00, NNNN00, NNNN00"
               variant="filled"
               flat
               hide-details="auto"
