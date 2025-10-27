@@ -27,3 +27,8 @@ class SessionOut(BaseModel):
 class ReserveResult(BaseModel):
     session_id: str
     reserved_numbers: list[int]
+
+
+class AddNumbers(BaseModel):
+    requested_count: int | None = None
+    numbers: list[int] | None = None

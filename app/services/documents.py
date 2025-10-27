@@ -24,42 +24,61 @@ class DocumentsService:
         self.equipment_repo = EquipmentRepository(session)
         self.users_repo = UsersRepository(session)
 
-    async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str | None, is_admin: bool) -> dict:
-        # берем наименьший зарезервированный номер
-        reserved = await self.numbers_repo.get_reserved_for_session(session_id)
-        if not reserved:
-            return {"created": None, "message": "Нет зарезервированных номеров в сессии."}
-        candidate = None
-        for row in reserved:
-            if is_golden(row.numeric) and not is_admin:
-                continue
-            candidate = row.numeric
-            break
-        if candidate is None:
-            return {"created": None, "message": "В пуле только номера ХХХХ00, недоступные обычному пользователю."}
+    async def assign_one(self, *, session_id: str, user_id: int, doc_name: str, note: str | None, is_admin: bool,
+                         numeric: int) -> dict:
+        print("\n" + "=" * 50)
+        print(f"-> assign_one_service: Начало назначения для сессии {session_id}")
+        print(f"   - Пользователь ID: {user_id}, Админ: {is_admin}")
+        print(f"   - Запрошенный номер (от фронтенда): {numeric}")
 
-        # создаем документ
+        reserved_orm = await self.numbers_repo.get_reserved_for_session(session_id)
+        reserved_numerics = [r.numeric for r in reserved_orm]
+
+        print(f"   - Номера, считающиеся 'reserved' в БД для этой сессии: {reserved_numerics}")
+
+        if not reserved_orm:
+            print(f"<- assign_one_service: ВЫХОД. Причина: Нет зарезервированных номеров в сессии.")
+            print("=" * 50 + "\n")
+            return {"created": None, "message": "Нет зарезервированных номеров в сессии."}
+
+        candidate_row = next((row for row in reserved_orm if row.numeric == numeric), None)
+
+        if candidate_row is None:
+            print(f"<- assign_one_service: ВЫХОД. Причина: Номер {numeric} не найден в списке 'reserved' номеров.")
+            print("=" * 50 + "\n")
+            return {"created": None, "message": f"Номер {numeric} не найден или уже назначен в текущей сессии."}
+
+        if is_golden(candidate_row.numeric) and not is_admin:
+            print(f"<- assign_one_service: ВЫХОД. Причина: Не-админ пытается назначить золотой номер {numeric}.")
+            print("=" * 50 + "\n")
+            return {"created": None, "message": f"Номер {numeric} является 'золотым' и недоступен для назначения."}
+
         try:
+            session_obj = await self.sessions_repo.get(session_id)
+            if not session_obj:
+                print(f"<- assign_one_service: ВЫХОД. Причина: Сессия {session_id} не найдена.")
+                print("=" * 50 + "\n")
+                return {"created": None, "message": "Сессия не найдена."}
+
             doc = await self.docs_repo.create(
                 {
-                    "numeric": candidate,
+                    "numeric": numeric,
                     "doc_name": doc_name,
                     "note": note,
-                    "equipment_id": (await self.sessions_repo.get(session_id)).equipment_id,
+                    "equipment_id": session_obj.equipment_id,
                     "user_id": user_id,
                 }
             )
-            await self.numbers_repo.mark_assigned([candidate])
-            # если больше номеров нет — закрываем сессию
-            rest = await self.numbers_repo.get_reserved_for_session(session_id)
-            if not any((not is_golden(r.numeric) or is_admin) for r in rest):
-                await self.sessions_repo.set_status(session_id, SessionStatus.completed)
+            await self.numbers_repo.mark_assigned([numeric])
             await self.session.commit()
-            
-            # Получаем дополнительную информацию для wizard
+
+            print(f"   - УСПЕХ: Документ с номером {numeric} создан и закоммичен.")
+            print(f"<- assign_one_service: Успешное завершение.")
+            print("=" * 50 + "\n")
+
             equipment = await self.equipment_repo.get(doc.equipment_id)
             user = await self.users_repo.get(doc.user_id)
-            
+
             return {
                 "created": {
                     "id": doc.id,
@@ -74,8 +93,10 @@ class DocumentsService:
                 "message": "Документ создан.",
             }
         except IntegrityError:
+            print(f"<- assign_one_service: ВЫХОД. Причина: IntegrityError (дубликат документа).")
+            print("=" * 50 + "\n")
             await self.session.rollback()
-            raise ValueError("Такой документ уже зарегистрирован.")
+            raise ValueError("Такой документ уже зарегистрирован для данного объекта.")
 
     async def edit_document_admin(self, *, document_id: int, username: str, data: AdminDocumentUpdate) -> dict:
         """
@@ -85,18 +106,18 @@ class DocumentsService:
         doc = await self.docs_repo.get(document_id)
         if not doc:
             raise ValueError("Документ не найден.")
-        
+
         equipment = doc.equipment
         if not equipment:
             raise ValueError("Связанное оборудование для документа не найдено.")
-        
+
         changed = {}
 
         # 1. Проверяем изменения в полях документа (Document)
         if data.doc_name is not None and data.doc_name != doc.doc_name:
             changed["Наименование документа"] = [doc.doc_name, data.doc_name]
             doc.doc_name = data.doc_name
-        
+
         if data.note is not None and data.note != doc.note:
             changed["Примечание"] = [doc.note, data.note]
             doc.note = data.note
@@ -105,7 +126,7 @@ class DocumentsService:
         if data.eq_type is not None and data.eq_type != equipment.eq_type:
             changed["Тип оборудования"] = [equipment.eq_type, data.eq_type]
             equipment.eq_type = data.eq_type
-        
+
         if data.station_object is not None and data.station_object != equipment.station_object:
             changed["Станция/Объект"] = [equipment.station_object, data.station_object]
             equipment.station_object = data.station_object
@@ -136,9 +157,8 @@ class DocumentsService:
         except IntegrityError:
             await self.session.rollback()
             raise ValueError("Такой документ уже зарегистрирован (конфликт уникальности).")
-        
+
         await self.audit_repo.add(document_id=doc.id, doc_number=doc.numeric, username=username, diff=changed)
         await self.session.commit()
-        
+
         return {"message": "Изменения сохранены.", "diff": changed}
-    

@@ -28,7 +28,8 @@ async def assign_one(
             user_id=user.id,
             doc_name=payload.doc_name,
             note=payload.note,
-            is_admin=user.is_admin
+            is_admin=user.is_admin,
+            numeric=payload.numeric
         )
 
         if result_dict.get("created") is None:

@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.db import lifespan_session
 from app.repositories.doc_numbers import DocNumbersRepository
 from app.repositories.sessions import SessionsRepository
-from app.schemas.sessions import SessionStart, ReserveResult
+from app.schemas.sessions import SessionStart, ReserveResult, AddNumbers
 from app.services.reservation import ReservationService
 
 router = APIRouter()
@@ -98,3 +98,25 @@ async def get_reserved_numbers(
         })
 
     return {"reserved": formatted_numbers, "count": len(formatted_numbers)}
+
+
+@router.post("/{session_id}/add-numbers", response_model=list[int])
+async def add_numbers(
+        session_id: str,
+        payload: AddNumbers,
+        session: AsyncSession = Depends(lifespan_session),
+        user: CurrentUser = Depends(get_current_user),
+):
+    """Добавляет новые зарезервированные номера к существующей сессии."""
+    svc = ReservationService(session)
+    try:
+        new_numbers = await svc.add_numbers_to_session(
+            session_id=session_id,
+            user_id=user.id,
+            requested_count=payload.requested_count,
+            numbers=payload.numbers,
+            is_admin=user.is_admin
+        )
+        return new_numbers
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
