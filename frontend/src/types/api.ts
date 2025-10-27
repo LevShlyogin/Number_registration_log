@@ -44,6 +44,11 @@ export interface AssignNumberIn {
   note: string | null
 }
 
+export interface AddNumbersIn {
+  requested_count?: number
+  numbers?: number[]
+}
+
 // Структура объекта 'created'
 export interface CreatedDocumentInfo {
   id: number

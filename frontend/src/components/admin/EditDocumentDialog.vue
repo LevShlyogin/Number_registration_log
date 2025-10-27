@@ -36,54 +36,57 @@
             <v-divider class="my-4"></v-divider>
             <h3 class="text-subtitle-1 font-weight-bold mb-3">Данные оборудования</h3>
             <v-row>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.eq_type"
                   label="Тип оборудования"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.station_object"
                   label="Станция/Объект"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.station_no"
                   label="№ станционный"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+                  :rules="[rules.stationNo]"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.factory_no"
                   label="№ заводской"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+                  :rules="[rules.factoryNo]"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.order_no"
                   label="№ заказа"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
-              <v-col cols="12" sm="6"
-                ><v-text-field
+                  :rules="[rules.orderNo]"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-text-field
                   v-model="formData.label"
                   label="Маркировка"
                   variant="outlined"
                   density="compact"
-                ></v-text-field
-              ></v-col>
+                ></v-text-field>
+              </v-col>
             </v-row>
           </v-container>
         </v-card-text>
@@ -113,16 +116,14 @@ const props = defineProps<{
   document: AdminDocumentRow | null
 }>()
 
-const emit = defineEmits(['success'])
+const emit = defineEmits(['update'])
 const dialog = defineModel<boolean>()
 const formRef = ref<any>(null)
 const isSaving = ref(false)
 const notifier = useNotifier()
 
-// Используем reactive для данных формы
 const formData = reactive<DocumentUpdatePayload>({})
 
-// Синхронизируем данные формы с пропсом `document`, когда диалог открывается
 watch(
   () => props.document,
   (newDoc) => {
@@ -139,22 +140,46 @@ watch(
       })
     }
   },
+  { immediate: true, deep: true },
 )
 
 const rules = {
   required: (value: string) => !!value || 'Это поле обязательно.',
+  factoryNo: (v: string) => !v || /^\d{1,5}$/.test(v) || 'Не более 5 цифр',
+  stationNo: (v: string) => !v || /^\d{1,2}$/.test(v) || 'Не более 2 цифр',
+  orderNo: (v: string) => !v || /^\d{5}-\d{2}-\d{5}$/.test(v) || 'Формат XXXXX-XX-XXXXX',
 }
 
+watch(
+  () => formData.order_no,
+  (newValue) => {
+    if (newValue === null || newValue === undefined) return
+
+    const digitsOnly = newValue.toString().replace(/\D/g, '')
+
+    let formatted = ''
+    if (digitsOnly.length > 0) {
+      formatted = digitsOnly.substring(0, 5)
+    }
+    if (digitsOnly.length > 5) {
+      formatted += '-' + digitsOnly.substring(5, 7)
+    }
+    if (digitsOnly.length > 7) {
+      formatted += '-' + digitsOnly.substring(7, 12)
+    }
+
+    if (formatted !== newValue) {
+      formData.order_no = formatted
+    }
+  },
+)
+
 async function save() {
-  if (!props.document) return;
-  const { valid } = await formRef.value.validate();
+  if (!props.document) return
+  const { valid } = await formRef.value.validate()
   if (valid) {
-    isSaving.value = true;
-    console.log('Saving document...', { id: props.document.id, payload: formData });
-    await new Promise(resolve => setTimeout(resolve, 800)); // Имитация
-    isSaving.value = false;
-    notifier.success(`Данные для документа №${props.document.doc_no} сохранены!`);
-    emit('success', { id: props.document.id, payload: formData });
+    notifier.success(`Данные для документа №${props.document.doc_no} сохранены!`)
+    emit('update', { id: props.document.id, payload: formData })
   }
 }
 
@@ -162,6 +187,5 @@ function close() {
   dialog.value = false
 }
 
-// Преобразуем `document` в `computed`, чтобы избежать прямого использования пропса в шаблоне
 const documentData = computed(() => props.document)
 </script>

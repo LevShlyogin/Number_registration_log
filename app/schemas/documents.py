@@ -8,6 +8,7 @@ class DocumentAssignOne(BaseModel):
     session_id: str
     doc_name: str = Field(min_length=1)
     note: str | None = None
+    numeric: int
 
 
 class DocumentOut(BaseModel):

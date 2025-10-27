@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,5 +26,18 @@ async def get_current_user(
     svc = UsersService(session)
     user = await svc.get_or_create_by_username(dev_username)
 
-    # Для разработки делаем этого пользователя админом, чтобы иметь доступ ко всем функциям
     return CurrentUser(id=user.id, username=user.username, is_admin=True)
+
+async def get_current_admin_user(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """
+    Получает текущего пользователя и проверяет, является ли он администратором.
+    Если пользователь не администратор, выбрасывает исключение HTTPException 403.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Недостаточно прав для выполнения этого действия.",
+        )
+    return current_user

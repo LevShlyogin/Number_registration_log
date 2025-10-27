@@ -1,5 +1,10 @@
 import { useMutation } from '@tanstack/vue-query'
-import type { AdminReserveSpecific, ReserveNumbersIn, ReserveNumbersOut } from '@/types/api'
+import type {
+  AdminReserveSpecific,
+  ReserveNumbersIn,
+  ReserveNumbersOut,
+  AddNumbersIn,
+} from '@/types/api'
 import apiClient from '@/api'
 
 // Обычный резерв
@@ -13,6 +18,18 @@ const reserveSpecificNumbers = async (
   payload: AdminReserveSpecific,
 ): Promise<ReserveNumbersOut> => {
   const { data } = await apiClient.post<ReserveNumbersOut>('/admin/reserve-specific', payload)
+  return data
+}
+
+// Добавление номеров в существующую сессию
+const addNumbersToSession = async ({
+  sessionId,
+  payload,
+}: {
+  sessionId: string
+  payload: AddNumbersIn
+}): Promise<number[]> => {
+  const { data } = await apiClient.post<number[]>(`/sessions/${sessionId}/add-numbers`, payload)
   return data
 }
 
@@ -33,6 +50,10 @@ export function useNumberReservation() {
     mutationFn: reserveSpecificNumbers,
   })
 
+  const { mutate: addNumbers, isPending: isAdding } = useMutation<number[], Error, { sessionId: string; payload: AddNumbersIn }>({
+    mutationFn: addNumbersToSession,
+  })
+
   return {
     reserve,
     isLoading,
@@ -40,5 +61,7 @@ export function useNumberReservation() {
     reserveSpecific,
     isReservingSpecific,
     reserveSpecificError,
+    addNumbers,
+    isAdding,
   }
 }
