@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from app.core.auth import get_current_user, CurrentUser
+from app.core.auth import get_current_user, get_current_admin_user, CurrentUser
 from app.core.db import lifespan_session
 from app.schemas.equipment import EquipmentCreate, EquipmentOut
 from app.services.equipment import EquipmentService
@@ -46,7 +46,7 @@ async def search_equipment(
 async def create_equipment(
         eq_in: EquipmentCreate,
         session: AsyncSession = Depends(lifespan_session),
-        user: CurrentUser = Depends(get_current_user),
+        admin_user: CurrentUser = Depends(get_current_admin_user),
 ):
     """Создание нового объекта оборудования. Всегда работает с JSON."""
     try:
