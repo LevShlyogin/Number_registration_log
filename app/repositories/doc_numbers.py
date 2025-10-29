@@ -13,6 +13,13 @@ class DocNumbersRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def find_existing_from_list(self, numbers: list[int]) -> set[int]:
+        if not numbers:
+            return set()
+        query = select(DocNumber.numeric).where(DocNumber.numeric.in_(numbers))
+        result = await self.session.execute(query)
+        return set(result.scalars().all())
+
     async def release_expired(self, now: datetime | None = None) -> int:
         now = now or datetime.utcnow()
         res = await self.session.execute(
