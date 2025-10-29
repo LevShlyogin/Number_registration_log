@@ -24,15 +24,3 @@ class DocumentOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-class GoldenNumberReservationRequest(BaseModel):
-    """Схема для запроса на резервирование 'золотых' номеров."""
-    quantity: int = Field(..., gt=0, description="Количество золотых номеров для резервирования.")
-    equipment_id: int = Field(..., description="ID оборудования, к которому будут привязаны номера.")
-    ttl_seconds: int = Field(default=3600, gt=0, description="Время жизни резервации в секундах.")
-
-
-class GoldenNumberReservationResponse(BaseModel):
-    """Схема для ответа после резервирования 'золотых' номеров."""
-    session_id: str
-    reserved_numbers: list[int]
