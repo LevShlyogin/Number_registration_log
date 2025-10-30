@@ -10,8 +10,7 @@
             </v-avatar>
             <h1 class="text-h3 font-weight-bold mb-3 text-primary">Журнал регистрации УТЗ</h1>
             <p class="text-h6 font-weight-light text-medium-emphasis mb-8">
-              Система для регистрации оборудования, резервирования и назначения номеров
-              конструкторской документации.
+              Система для регистрации номеров конструкторской документации.
             </p>
             <div class="d-flex justify-center flex-wrap ga-4">
               <v-btn

@@ -1,131 +1,145 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from typing import List
+
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse
 
-from app.core.db import lifespan_session
 from app.core.auth import get_current_user, CurrentUser
-from app.services.reports import ReportsService, start_of_week
+from app.core.db import lifespan_session
+from app.schemas.admin import AdminDocumentRow
+from app.schemas.reports import ReportRowOut
+from app.services.reports import ReportsService
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter()
 
 
 def _parse_dt(s: str | None) -> datetime | None:
-    if not s:
-        return None
+    if not s: return None
     try:
         return datetime.fromisoformat(s)
     except Exception:
         return None
 
 
-def _parse_stations(station_object: list[str] | None, station_raw: str | None) -> list[str] | None:
-    if station_object and len(station_object) > 0:
-        return station_object
-    if station_raw:
-        parts = [p.strip() for p in station_raw.split(",") if p.strip()]
-        return parts or None
-    return None
+def _parse_stations(station_objects: list[str] | None) -> list[str] | None:
+    if not station_objects: return None
+    # FastAPI с Query(default=None) может передавать [""] если параметр пуст
+    cleaned = [s.strip() for s in station_objects if s.strip()]
+    return cleaned or None
+
 
 def clean_param(p: str | None) -> str | None:
-    if p is None:
-        return None
+    if p is None: return None
     stripped = p.strip()
     return stripped if stripped else None
 
-@router.get("", response_class=HTMLResponse)
-async def report_json(
-    request: Request,
-    station_object: list[str] | None = Query(default=None, alias="station_object"),
-    station_object_raw: str | None = Query(default=None, alias="station_object"),
-    station_no: str | None = Query(default=None, alias="station_no"),
-    label: str | None = Query(default=None, alias="label"),
-    factory_no: str | None = Query(default=None, alias="factory_no"),
-    order_no: str | None = Query(default=None, alias="order_no"),
-    date_from: str | None = Query(default=None, alias="date-from"),
-    date_to: str | None = Query(default=None, alias="date-to"),
-    session: AsyncSession = Depends(lifespan_session),
-    user: CurrentUser = Depends(get_current_user),
+
+@router.get("", response_model=list[ReportRowOut])
+async def get_report(
+        station_object: list[str] | None = Query(default=None),
+        station_no: str | None = Query(default=None),
+        label: str | None = Query(default=None),
+        factory_no: str | None = Query(default=None),
+        order_no: str | None = Query(default=None),
+        date_from: str | None = Query(default=None),
+        date_to: str | None = Query(default=None),
+        doc_name: str | None = Query(default=None),
+        username: str | None = Query(default=None),
+        session: AsyncSession = Depends(lifespan_session),
+        user: CurrentUser = Depends(get_current_user),
 ):
+    """Получение отчета с фильтрами. Всегда возвращает JSON."""
     svc = ReportsService(session)
     df = _parse_dt(date_from)
     dt = _parse_dt(date_to)
-    if df is None and dt is not None:
-        df = start_of_week()
-    if df is not None and dt is None:
-        dt = datetime.now()
+    stations = _parse_stations(station_object)
 
-    stations = _parse_stations(station_object, station_object_raw)
-    
     rows = await svc.get_rows_extended(
-        station_objects=stations, 
-        station_no=clean_param(station_no), 
-        label=clean_param(label), 
-        factory_no=clean_param(factory_no), 
-        order_no=clean_param(order_no), 
-        date_from=df, 
-        date_to=dt
+        station_objects=stations,
+        station_no=clean_param(station_no),
+        label=clean_param(label),
+        factory_no=clean_param(factory_no),
+        order_no=clean_param(order_no),
+        date_from=df,
+        date_to=dt,
+        doc_name=clean_param(doc_name),
+        username=clean_param(username)
     )
-
-    if request.headers.get("Hx-Request") == "true":
-        # мини‑таблица для HTMX
-        if not rows:
-            return HTMLResponse('<div class="badge">Нет данных</div>')
-        header = (
-            "<tr><th>№</th><th>Дата</th><th>Наименование</th><th>Примечание</th>"
-            "<th>Тип</th><th>Заводской</th><th>Заказ</th><th>Маркировка</th>"
-            "<th>Станц. №</th><th>Станция/Объект</th><th>Пользователь</th></tr>"
-        )
-        body = "".join(
-            f"<tr><td>{r['doc_no']}</td><td>{r['reg_date']}</td><td>{r['doc_name']}</td><td>{r['note']}</td>"
-            f"<td>{r['eq_type']}</td><td>{r['factory_no'] or ''}</td><td>{r['order_no'] or ''}</td>"
-            f"<td>{r['label'] or ''}</td><td>{r['station_no'] or ''}</td><td>{r['station_object'] or ''}</td>"
-            f"<td>{r.get('username', '')}</td></tr>"
-            for r in rows
-        )
-        return HTMLResponse(f"<table>{header}{body}</table>")
-    return JSONResponse(rows)
+    return rows
 
 
-@router.get("/excel")
-async def report_excel(
-    request: Request,
-    station_object_raw: str | None = Query(default=None, alias="station_object"),
-    station_object: list[str] | None = Query(default=None, alias="station_object"),
-    station_no: str | None = Query(default=None, alias="station_no"),
-    label: str | None = Query(default=None, alias="label"),
-    factory_no: str | None = Query(default=None, alias="factory_no"),
-    order_no: str | None = Query(default=None, alias="order_no"),
-    date_from: str | None = Query(default=None, alias="date-from"),
-    date_to: str | None = Query(default=None, alias="date-to"),
-    session: AsyncSession = Depends(lifespan_session),
-    user: CurrentUser = Depends(get_current_user),
+@router.get("/export", response_class=FileResponse)
+async def export_report_excel(
+        station_object: list[str] | None = Query(default=None),
+        station_no: str | None = Query(default=None),
+        label: str | None = Query(default=None),
+        factory_no: str | None = Query(default=None),
+        order_no: str | None = Query(default=None),
+        date_from: str | None = Query(default=None),
+        date_to: str | None = Query(default=None),
+        doc_name: str | None = Query(default=None),
+        username: str | None = Query(default=None),
+        session: AsyncSession = Depends(lifespan_session),
+        user: CurrentUser = Depends(get_current_user),
 ):
+    """Экспорт отчета в Excel. Возвращает файл."""
     svc = ReportsService(session)
     df = _parse_dt(date_from)
     dt = _parse_dt(date_to)
-    if df is None and dt is not None:
-        df = start_of_week()
-    if df is not None and dt is None:
-        dt = datetime.now()
-
-    stations = _parse_stations(station_object, station_object_raw)
+    stations = _parse_stations(station_object)
 
     fname = await svc.export_excel_extended(
-        station_objects=stations, 
-        station_no=clean_param(station_no), 
-        label=clean_param(label), 
-        factory_no=clean_param(factory_no), 
-        order_no=clean_param(order_no), 
-        date_from=df, 
-        date_to=dt
+        station_objects=stations,
+        station_no=clean_param(station_no),
+        label=clean_param(label),
+        factory_no=clean_param(factory_no),
+        order_no=clean_param(order_no),
+        date_from=df,
+        date_to=dt,
+        doc_name=clean_param(doc_name),
+        username=clean_param(username)
     )
-    
-    import os
+
     return FileResponse(
         path=fname,
         filename=os.path.basename(fname),
-        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        background=BackgroundTask(lambda: os.remove(fname))
     )
+
+
+@router.get("/admin/documents", response_model=List[AdminDocumentRow])
+async def admin_documents_search(
+        station_object: list[str] | None = Query(default=None),
+        station_no: str | None = Query(default=None),
+        label: str | None = Query(default=None),
+        factory_no: str | None = Query(default=None),
+        order_no: str | None = Query(default=None),
+        username: str | None = Query(default=None),
+        date_from: str | None = Query(default=None),
+        date_to: str | None = Query(default=None),
+        eq_type: str | None = Query(default=None),
+        doc_name: str | None = Query(default=None),
+        session: AsyncSession = Depends(lifespan_session),
+        user: CurrentUser = Depends(get_current_user),
+):
+    """Расширенный поиск документов для админов."""
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
+
+    svc = ReportsService(session)
+    df = _parse_dt(date_from)
+    dt = _parse_dt(date_to)
+    stations = _parse_stations(station_object)
+
+    rows = await svc.get_rows_extended_admin(
+        station_objects=stations, station_no=clean_param(station_no), label=clean_param(label),
+        factory_no=clean_param(factory_no), order_no=clean_param(order_no), username=clean_param(username),
+        date_from=df, date_to=dt, eq_type=clean_param(eq_type), doc_name=clean_param(doc_name)
+    )
+    return rows

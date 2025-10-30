@@ -1,52 +1,67 @@
 import { useMutation } from '@tanstack/vue-query'
-import type { AdminReserveSpecific, ReserveNumbersIn, ReserveNumbersOut } from '@/types/api'
+import type {
+  AdminReserveSpecific,
+  ReserveNumbersIn,
+  ReserveNumbersOut,
+  AddNumbersIn,
+} from '@/types/api'
+import apiClient from '@/api'
 
-// Асинхронная функция для API-запроса
+// Обычный резерв
 const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbersOut> => {
-  console.log('Reserving numbers with payload:', payload)
-  await new Promise((resolve) => setTimeout(resolve, 800)) // Имитация сети
-
-  if (payload.quantity <= 0) {
-    throw new Error('Количество должно быть больше нуля')
-  }
-  const mockSessionId = crypto.randomUUID() // Генерируем случайный UUID
-  const mockReservedNumbers = Array.from({ length: payload.quantity }, (_, i) => 1000 + i)
-  const mockResponse: ReserveNumbersOut = {
-    session_id: mockSessionId,
-    reserved_numbers: mockReservedNumbers,
-  }
-  console.log('Mock response for reservation:', mockResponse)
-  return mockResponse
+  const { data } = await apiClient.post<ReserveNumbersOut>('/sessions/reserve', payload)
+  return data
 }
 
-// API-функция для резерва конкретных номеров (админ)
+// Резерв конкретных номеров (админ)
 const reserveSpecificNumbers = async (
   payload: AdminReserveSpecific,
 ): Promise<ReserveNumbersOut> => {
-  console.log('Admin is reserving specific numbers:', payload)
-  await new Promise((resolve) => setTimeout(resolve, 800))
+  const { data } = await apiClient.post<ReserveNumbersOut>('/admin/reserve-specific', payload)
+  return data
+}
 
-  const mockSessionId = crypto.randomUUID()
-
-  return {
-    session_id: mockSessionId,
-    reserved_numbers: payload.numbers,
-  }
+// Добавление номеров в существующую сессию
+const addNumbersToSession = async ({
+  sessionId,
+  payload,
+}: {
+  sessionId: string
+  payload: AddNumbersIn
+}): Promise<number[]> => {
+  const { data } = await apiClient.post<number[]>(`/sessions/${sessionId}/add-numbers`, payload)
+  return data
 }
 
 export function useNumberReservation() {
-  const { mutate: reserve, isPending: isLoading } = useMutation({
+  const {
+    mutate: reserve,
+    isPending: isLoading,
+    error: reserveError,
+  } = useMutation<ReserveNumbersOut, Error, ReserveNumbersIn>({
     mutationFn: reserveNumbers,
   })
 
-  const { mutate: reserveSpecific, isPending: isReservingSpecific } = useMutation({
+  const {
+    mutate: reserveSpecific,
+    isPending: isReservingSpecific,
+    error: reserveSpecificError,
+  } = useMutation<ReserveNumbersOut, Error, AdminReserveSpecific>({
     mutationFn: reserveSpecificNumbers,
+  })
+
+  const { mutate: addNumbers, isPending: isAdding } = useMutation<number[], Error, { sessionId: string; payload: AddNumbersIn }>({
+    mutationFn: addNumbersToSession,
   })
 
   return {
     reserve,
     isLoading,
+    reserveError,
     reserveSpecific,
     isReservingSpecific,
+    reserveSpecificError,
+    addNumbers,
+    isAdding,
   }
 }

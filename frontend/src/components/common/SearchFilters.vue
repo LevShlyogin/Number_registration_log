@@ -8,7 +8,6 @@
     </v-card-title>
     <v-divider></v-divider>
     <v-card-text>
-      <!-- Используем v-model:model-value для двусторонней привязки -->
       <v-row>
         <v-col cols="12" sm="6" md="3"
           ><v-text-field
@@ -24,6 +23,7 @@
             label="№ станционный"
             clearable
             hide-details="auto"
+            :rules="[rules.stationNo]"
           ></v-text-field
         ></v-col>
         <v-col cols="12" sm="6" md="3"
@@ -32,6 +32,7 @@
             label="№ заводской"
             clearable
             hide-details="auto"
+            :rules="[rules.factoryNo]"
           ></v-text-field
         ></v-col>
         <v-col cols="12" sm="6" md="3"
@@ -40,6 +41,7 @@
             label="№ заказа"
             clearable
             hide-details="auto"
+            :rules="[rules.orderNo]"
           ></v-text-field
         ></v-col>
         <v-col cols="12" sm="6" md="3"
@@ -103,6 +105,13 @@ import type { SearchParams } from '@/types/api'
 const modelValue = defineModel<Partial<SearchParams>>({ required: true })
 
 const emit = defineEmits(['reset'])
+
+const rules = {
+  factoryNo: (v: string) => !v || /^\d{1,5}$/.test(v) || 'Не более 5 цифр',
+  stationNo: (v: string) => !v || /^\d{1,2}$/.test(v) || 'Не более 2 цифр',
+  orderNo: (v: string) =>
+    !v || /^\d{5}-\d{2}-\d{5}$/.test(v) || 'Формат XXXXX-XX-XXXXX',
+}
 
 function reset() {
   emit('reset')

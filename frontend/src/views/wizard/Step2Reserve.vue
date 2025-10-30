@@ -23,8 +23,12 @@
               max="100"
               class="mb-4"
             />
-            <v-btn type="submit" :loading="isLoading" color="primary" variant="flat">
-              Резервировать
+            <!-- ИЗМЕНЕНИЕ ЗДЕСЬ: используем 'anyLoading' -->
+            <v-btn type="submit" :loading="anyLoading" color="primary" variant="flat">
+              <v-icon start>{{
+                wizardStore.hasActiveSession ? 'mdi-plus' : 'mdi-lock-outline'
+              }}</v-icon>
+              {{ wizardStore.hasActiveSession ? 'Добавить' : 'Резервировать' }}
             </v-btn>
           </v-form>
         </v-sheet>
@@ -41,14 +45,18 @@
             <v-text-field
               v-model="goldenNumbersInput"
               label="Номера через запятую"
-              placeholder="1000, 2000, 3000"
+              placeholder="Например: 1200, 1300, 2500"
               variant="filled"
               flat
               hide-details="auto"
               class="mb-4"
             ></v-text-field>
-            <v-btn type="submit" :loading="isReservingSpecific" color="amber" variant="flat">
-              Зарезервировать указанные
+            <!-- ИЗМЕНЕНИЕ ЗДЕСЬ: используем 'anyLoading' -->
+            <v-btn type="submit" :loading="anyLoading" color="amber" variant="flat">
+              <v-icon start>{{
+                wizardStore.hasActiveSession ? 'mdi-plus' : 'mdi-lock-outline'
+              }}</v-icon>
+              {{ wizardStore.hasActiveSession ? 'Добавить' : 'Резервировать' }}
             </v-btn>
           </v-form>
         </v-sheet>
@@ -60,16 +68,15 @@
       <v-card v-if="wizardStore.hasActiveSession" variant="tonal" color="success" class="mt-6">
         <v-card-title>
           <v-icon start icon="mdi-check-circle"></v-icon>
-          Успешно зарезервировано!
+          Текущий пул номеров
         </v-card-title>
         <v-card-text>
-          <!-- Используем данные ИЗ СТОРА -->
           <p class="mt-2 font-weight-medium">
             Всего зарезервировано: {{ wizardStore.reservedNumbers.length }}
           </p>
           <v-sheet max-height="150" class="scrollable-chip-group pa-2 mt-1" color="transparent">
             <v-chip-group>
-              <v-chip v-for="num in wizardStore.reservedNumbers" :key="num" label>
+              <v-chip v-for="num in sortedReservedNumbers" :key="num" label>
                 {{ num }}
               </v-chip>
             </v-chip-group>
@@ -99,13 +106,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useAuthStore } from '@/stores/auth'
 import { useNumberReservation } from '@/composables/useNumberReservation'
 import { useNotifier } from '@/composables/useNotifier'
-import type { ReserveNumbersOut } from '@/types/api'
+import { AxiosError } from 'axios'
 
 const props = defineProps<{ equipmentId: string }>()
 
@@ -113,73 +120,106 @@ const router = useRouter()
 const wizardStore = useWizardStore()
 const auth = useAuthStore()
 const notifier = useNotifier()
-const { reserve, isLoading, reserveSpecific, isReservingSpecific } = useNumberReservation()
+const { reserve, isLoading, reserveSpecific, isReservingSpecific, addNumbers, isAdding } =
+  useNumberReservation()
 
 const quantity = ref(1)
 const goldenNumbersInput = ref('')
+const anyLoading = computed(() => isLoading.value || isReservingSpecific.value || isAdding.value)
+
+const sortedReservedNumbers = computed(() => [...wizardStore.reservedNumbers].sort((a, b) => a - b))
+
 const rules = {
   required: (value: number) => !!value || 'Это поле обязательно.',
   positive: (value: number) => value > 0 || 'Количество должно быть больше нуля.',
 }
 
-function handleReserve() {
-  if (!quantity.value || quantity.value <= 0) {
-    notifier.warning('Введите корректное количество номеров (больше нуля).')
-    return
+function handleApiError(error: unknown) {
+  let message = 'Произошла неизвестная ошибка'
+  if (error instanceof AxiosError && error.response?.data?.detail) {
+    message = error.response.data.detail
+  } else if (error instanceof Error) {
+    message = error.message
   }
+  notifier.error(message)
+}
 
-  reserve(
-    {
-      equipment_id: Number(props.equipmentId),
-      quantity: quantity.value,
-    },
-    {
-      onSuccess: (data: ReserveNumbersOut) => {
-        wizardStore.setSession(data.session_id, [
-          ...wizardStore.reservedNumbers,
-          ...data.reserved_numbers,
-        ])
-        notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)!`)
+function handleReserve() {
+  if (anyLoading.value) return
+
+  if (wizardStore.hasActiveSession) {
+    addNumbers(
+      {
+        sessionId: wizardStore.currentSessionId!,
+        payload: { requested_count: quantity.value },
       },
-      onError: (e) => {
-        notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
+      {
+        onSuccess: (newNumbers) => {
+          wizardStore.reservedNumbers.push(...newNumbers)
+          notifier.success(`Добавлено ${newNumbers.length} номер(а)`)
+        },
+        onError: handleApiError,
       },
-    },
-  )
+    )
+  } else {
+    reserve(
+      {
+        equipment_id: Number(props.equipmentId),
+        requested_count: quantity.value,
+      },
+      {
+        onSuccess: (data) => {
+          wizardStore.setSession(data.session_id, data.reserved_numbers)
+          notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)`)
+        },
+        onError: handleApiError,
+      },
+    )
+  }
 }
 
 function handleReserveGolden() {
+  if (anyLoading.value) return
   const numbers = goldenNumbersInput.value
     .split(',')
     .map((n) => parseInt(n.trim(), 10))
-    .filter((n) => !isNaN(n) && n > 0)
-
+    .filter(Boolean)
   if (numbers.length === 0) {
-    notifier.warning('Введите корректные числовые номера через запятую.')
+    notifier.warning('Введите корректные номера.')
     return
   }
 
-  reserveSpecific(
-    {
-      equipment_id: Number(props.equipmentId),
-      numbers: numbers,
-    },
-    {
-      onSuccess: (data: ReserveNumbersOut) => {
-        wizardStore.setSession(data.session_id, [
-          ...wizardStore.reservedNumbers,
-          ...data.reserved_numbers,
-        ])
-        notifier.success(
-          `Успешно зарезервировано ${data.reserved_numbers.length} "золотых" номер(а)!`,
-        )
-        goldenNumbersInput.value = ''
+  if (wizardStore.hasActiveSession) {
+    addNumbers(
+      {
+        sessionId: wizardStore.currentSessionId!,
+        payload: { numbers },
       },
-      onError: (e) => {
-        notifier.error(`Ошибка при резервировании: ${(e as Error).message}`)
+      {
+        onSuccess: (newNumbers) => {
+          wizardStore.reservedNumbers.push(...newNumbers)
+          goldenNumbersInput.value = ''
+          notifier.success(`Добавлено ${newNumbers.length} "золотых" номер(а)`)
+        },
+        onError: handleApiError,
       },
-    },
-  )
+    )
+  } else {
+    reserveSpecific(
+      {
+        equipment_id: Number(props.equipmentId),
+        numbers,
+      },
+      {
+        onSuccess: (data) => {
+          wizardStore.setSession(data.session_id, data.reserved_numbers)
+          goldenNumbersInput.value = ''
+          notifier.success(`Зарезервировано ${data.reserved_numbers.length} "золотых" номер(а)`)
+        },
+        onError: handleApiError,
+      },
+    )
+  }
 }
 
 function goBack() {

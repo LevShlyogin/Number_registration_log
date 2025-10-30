@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app.repositories.equipment import EquipmentRepository
 from app.models.equipment import Equipment
@@ -14,21 +15,31 @@ class EquipmentService:
         self.repo = EquipmentRepository(session)
 
     async def create(self, data: dict) -> Equipment:
-        # Проверяем дубли перед созданием
-        await self._check_duplicates(data)
+        factory_no = data.get("factory_no")
+        # Проверяем на дубликат только если factory_no передан
+        if factory_no:
+            query = select(Equipment).where(Equipment.factory_no == factory_no)
+            result = await self.session.execute(query)
+            existing_equipment = result.scalars().first()
+            if existing_equipment:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Оборудование с заводским номером '{factory_no}' уже существует."
+                )
         
         try:
+            # await self._check_duplicates(data)
             eq = await self.repo.create(data)
             await self.session.commit()
+            await self.session.refresh(eq)
             return eq
         except IntegrityError as e:
             await self.session.rollback()
-            if "ix_equipment_unique_attributes" in str(e):
-                raise HTTPException(
-                    status_code=409, 
-                    detail="Объект с такими атрибутами уже существует."
-                )
-            raise
+            
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Объект с такими атрибутами уже существует."
+            )
 
     async def get(self, id_: int) -> Equipment | None:
         return await self.repo.get(id_)

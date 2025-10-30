@@ -89,10 +89,10 @@ if (lastSessionId) {
   initialFilters = { session_id: lastSessionId }
 } else if (authStore.user) {
   // Иначе фильтруем по имени текущего пользователя
-  initialFilters = { username: authStore.user.login }
+  initialFilters = { username: authStore.user.username }
 }
 
-const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItems } =
+const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItemsForExport } =
   useReports(initialFilters)
 
 const isExporting = ref(false)
@@ -122,7 +122,7 @@ function resetFilters() {
 async function exportToExcel() {
   isExporting.value = true
   try {
-    const allItems = await fetchAllReportItems()
+    const allItems = await fetchAllReportItemsForExport()
 
     if (!allItems || allItems.length === 0) {
       notifier.warning('Нет данных для экспорта!')

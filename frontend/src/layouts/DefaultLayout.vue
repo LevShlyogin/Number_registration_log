@@ -35,8 +35,8 @@
             <v-icon icon="mdi-account-circle" color="secondary"></v-icon>
           </v-avatar>
           <div class="d-none d-lg-block">
-            <div class="username">{{ auth.user.fullName }}</div>
-            <div class="login">{{ auth.user.login }}</div>
+            <div class="username">{{ auth.fullName }}</div>
+            <div class="login">{{ auth.user.username }}</div>
           </div>
         </div>
 

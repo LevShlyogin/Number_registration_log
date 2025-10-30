@@ -8,7 +8,6 @@
       </v-card-title>
       <v-divider></v-divider>
 
-      <!-- Добавляем lazy-validation и v-model="isFormValid" -->
       <v-form ref="formRef" v-model="isFormValid" lazy-validation>
         <v-card-text style="max-height: 70vh; overflow-y: auto">
           <v-container>
@@ -16,7 +15,7 @@
               <v-col cols="12">
                 <v-select
                   v-model="formData.eq_type"
-                  :items="['Турбина', 'Насос', 'Вспомогательное оборудование']"
+                  :items="['Турбина', 'Вспомогательное оборудование']"
                   label="Тип оборудования*"
                   :rules="[rules.required]"
                   required
@@ -36,6 +35,7 @@
                 <v-text-field
                   v-model="formData.station_no"
                   label="№ станционный"
+                  :rules="[rules.stationNo]"
                   variant="outlined"
                   density="compact"
                 ></v-text-field>
@@ -44,8 +44,7 @@
                 <v-text-field
                   v-model="formData.factory_no"
                   label="№ заводской"
-                  :rules="[rules.counter]"
-                  counter="20"
+                  :rules="[rules.factoryNo]"
                   variant="outlined"
                   density="compact"
                 ></v-text-field>
@@ -54,6 +53,8 @@
                 <v-text-field
                   v-model="formData.order_no"
                   label="№ заказа"
+                  placeholder="XXXXX-XX-XXXXX"
+                  :rules="[rules.orderNo]"
                   variant="outlined"
                   density="compact"
                 ></v-text-field>
@@ -110,24 +111,45 @@ const dialog = defineModel<boolean>()
 const emit = defineEmits(['success'])
 
 const formRef = ref<any>(null)
-const isFormValid = ref(false) // Состояние валидности формы
+const isFormValid = ref(false)
 const notifier = useNotifier()
 const formData = reactive<Partial<EquipmentIn>>({
   eq_type: 'Турбина',
 })
 
-// Правила валидации
 const rules = {
-  required: (value: any) => !!value || 'Это поле обязательно.',
-  counter: (value: string) => !value || value.length <= 20 || 'Максимум 20 символов',
+  required: (v: any) => !!v || 'Это поле обязательно.',
+  factoryNo: (v: string) => !v || /^\d{1,5}$/.test(v) || 'Не более 5 цифр',
+  stationNo: (v: string) => !v || /^\d{1,2}$/.test(v) || 'Не более 2 цифр',
+  orderNo: (v: string) => !v || /^\d{5}-\d{2}-\d{5}$/.test(v) || 'Формат XXXXX-XX-XXXXX',
 }
 
-// Сбрасываем форму и валидацию при открытии диалога
+watch(
+  () => formData.order_no,
+  (newValue) => {
+    if (newValue === null || newValue === undefined) return
+    const digitsOnly = newValue.toString().replace(/\D/g, '')
+
+    let formatted = ''
+    if (digitsOnly.length > 0) {
+      formatted = digitsOnly.substring(0, 5)
+    }
+    if (digitsOnly.length > 5) {
+      formatted += '-' + digitsOnly.substring(5, 7)
+    }
+    if (digitsOnly.length > 7) {
+      formatted += '-' + digitsOnly.substring(7, 12)
+    }
+    if (formatted !== newValue) {
+      formData.order_no = formatted
+    }
+  },
+)
+
 watch(dialog, (newValue) => {
   if (newValue) {
     formRef.value?.reset()
     formRef.value?.resetValidation()
-    // Восстанавливаем дефолтные значения
     Object.assign(formData, {
       eq_type: 'Турбина',
       station_object: '',
@@ -147,7 +169,6 @@ const { mutate: createEquipment, isPending: isSaving } = useMutation({
     emit('success', response.data)
   },
   onError: (error: any) => {
-    // error может быть не только ApiError
     const message = error.response?.data?.detail || error.message || 'Произошла неизвестная ошибка'
     notifier.error(`Ошибка создания: ${message}`)
   },

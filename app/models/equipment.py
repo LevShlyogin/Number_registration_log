@@ -3,21 +3,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String
+from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import CITEXT
 from app.models.base import Base, TimestampMixin
 
-# Импортируем Document только для типизации, не в runtime
 if TYPE_CHECKING:
     from app.models.document import Document
 
 
 class Equipment(Base, TimestampMixin):
     __tablename__ = "equipment"
-    
+    __table_args__ = (
+        UniqueConstraint('factory_no', name='uq_equipment_factory_no'),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     eq_type: Mapped[str] = mapped_column(String(200), nullable=False)
-    factory_no: Mapped[str | None] = mapped_column(CITEXT)
+    factory_no: Mapped[str | None] = mapped_column(CITEXT, unique=True, index=True)
     order_no: Mapped[str | None] = mapped_column(CITEXT)
     label: Mapped[str | None] = mapped_column(CITEXT)
     station_no: Mapped[str | None] = mapped_column(CITEXT)

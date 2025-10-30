@@ -22,20 +22,13 @@ export interface EquipmentIn {
 // Тело запроса для резервирования номеров
 export interface ReserveNumbersIn {
   equipment_id: number
-  quantity: number
+  requested_count: number
 }
 
 // Ответ от сервера после резервирования
 export interface ReserveNumbersOut {
-  session_id: string // UUID сессии
-  reserved_numbers: number[]
-}
-
-// Тип для назначения номера (понадобится на следующем шаге)
-export interface AssignNumberIn {
   session_id: string
-  doc_name: string
-  notes?: string
+  reserved_numbers: number[]
 }
 
 // Полезная нагрузка для резервирования конкретных номеров (админ)
@@ -44,21 +37,43 @@ export interface AdminReserveSpecific {
   numbers: number[]
 }
 
-// Ответ от сервера после назначения
-export interface AssignNumberOut {
+// Тип для назначения номера
+export interface AssignNumberIn {
   session_id: string
-  doc_no: number
   doc_name: string
-  notes?: string | null
-  created: string // ISO-строка даты
-  user: string
+  note: string | null
 }
 
-// Для получения уже назначенных номеров в сессии
-export interface AssignedNumber {
-  doc_no: number
+export interface AddNumbersIn {
+  requested_count?: number
+  numbers?: number[]
+}
+
+// Структура объекта 'created'
+export interface CreatedDocumentInfo {
+  id: number
+  numeric: number
+  formatted_no: string
   doc_name: string
-  notes?: string | null
+  note: string | null
+  reg_date: string
+  equipment: EquipmentOut
+  user: { id: number; username: string }
+}
+
+// Ответ от сервера после назначения
+export interface AssignNumberOut {
+  created: CreatedDocumentInfo
+  message: string
+}
+
+// Для отображения уже назначенных номеров в сессии
+export interface AssignedNumber {
+  id: number
+  numeric: number
+  formatted_no: string
+  doc_name: string
+  note: string | null
 }
 
 // Структура одной строки в отчете
@@ -72,7 +87,7 @@ export interface ReportItem {
   doc_name: string
   doc_no: number
   user: string
-  created: string // ISO-строка даты
+  created: string
 }
 
 // Ответ от API с отчетом
@@ -83,20 +98,18 @@ export interface ReportResponse {
 
 // Полная информация о документе/оборудовании для админ-панели
 export interface AdminDocumentRow {
-  id: number // ID документа
+  id: number
   doc_no: number
-  reg_date: string // ISO-строка
+  reg_date: string
   doc_name: string
   note: string | null
-  // Данные связанного оборудования
-  eq_id: number // ID оборудования
+  eq_id: number
   eq_type: string
   factory_no: string | null
   order_no: string | null
   label: string | null
   station_no: string | null
   station_object: string | null
-  // Данные пользователя
   username: string
 }
 
@@ -116,7 +129,7 @@ export interface SearchParams {
   date_from?: string
   date_to?: string
   eq_type?: string
-  q?: string // Глобальный поиск
+  q?: string
 }
 
 // Ответ от API для админского поиска
