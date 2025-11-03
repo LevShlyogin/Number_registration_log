@@ -78,16 +78,18 @@ export interface AssignedNumber {
 
 // Структура одной строки в отчете
 export interface ReportItem {
-  id: number
-  eq_type: string
-  station_object: string
-  factory_no: string | null
-  station_no: string | null
-  label: string | null
+  numeric: number
+  doc_no: string
+  reg_date: string
   doc_name: string
-  doc_no: number
-  user: string
-  created: string
+  note: string | null
+  eq_type: string
+  factory_no: string | null
+  order_no: string | null
+  label: string | null
+  station_no: string | null
+  station_object: string | null
+  username: string
 }
 
 // Ответ от API с отчетом
@@ -138,7 +140,7 @@ export interface AdminSearchResponse {
   totalItems: number
 }
 
-// Полезная нагрузка для обновления документа (из AdminDocumentUpdate в schemas/admin.py)
+// Полезная нагрузка для обновления документа
 export interface DocumentUpdatePayload {
   doc_name?: string
   note?: string
