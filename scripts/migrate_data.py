@@ -1,394 +1,268 @@
+# -*- coding: utf-8 -*-
 """
-Скрипт миграции данных из Excel файлов в БД
-Запускать из корня проекта: python scripts/migrate_data.py
+Excel -> PostgreSQL migration
+Run: poetry run python scripts/migrate_data.py
 """
 
-import sys
 import os
+import sys
+import re
+import logging
 from pathlib import Path
-
-# Добавляем корень проекта в path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from typing import Dict, Tuple
 
 import pandas as pd
-import logging
-from datetime import datetime
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from typing import Dict, Optional
-import re
+from sqlalchemy.dialects.postgresql import insert
 
-# Импортируем модели из проекта
+# Project path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Models
 from app.models.user import User
 from app.models.equipment import Equipment
 from app.models.document import Document
-from app.core.config import settings
 
-# Настройка логирования
+# Logging
+log_file = project_root / "scripts" / "migration.log"
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('scripts/migration.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler(log_file, mode="w"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
 
-class ExcelDataMigration:
-    def __init__(self):
-        """Инициализация с использованием настроек проекта"""
-        # Используем синхронное подключение для миграции (убираем +asyncpg)
-        db_url = settings.DATABASE_URL.replace("+asyncpg", "")
-        self.engine = create_engine(db_url, echo=False)
-        self.users_cache: Dict[str, int] = {}
-        self.equipment_cache: Dict[str, int] = {}
-        
-        # Проверяем подключение
-        try:
-            with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT version()"))
-                version = result.scalar()
-                logger.info(f"✅ Подключено к PostgreSQL: {version[:30]}...")
-        except Exception as e:
-            logger.error(f"❌ Ошибка подключения к БД: {e}")
-            raise
+def resolve_db_url() -> str:
+    """Get sync SQLAlchemy URL. Prefer DATABASE_URL; fallback to POSTGRES_*."""
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        return env_url.replace("+asyncpg", "")
+    host = os.getenv("POSTGRES_SERVER") or os.getenv("POSTGRES_HOST") or "localhost"
+    port = os.getenv("POSTGRES_PORT") or "5432"
+    user = os.getenv("POSTGRES_USER")
+    pwd = os.getenv("POSTGRES_PASSWORD")
+    db = os.getenv("POSTGRES_DB")
+    if not all([user, pwd, db]):
+        raise RuntimeError(
+            "Missing DB env. Set DATABASE_URL or POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB"
+        )
+    return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
 
-    def load_users(self, file_path: str) -> None:
-        """Загрузка пользователей из Excel"""
-        if not Path(file_path).exists():
-            logger.error(f"Файл не найден: {file_path}")
-            return
-            
-        logger.info(f"📥 Загрузка пользователей из {file_path}")
-        
-        try:
-            df_users = pd.read_excel(file_path)
-            logger.info(f"  Найдено {len(df_users)} записей")
-            
-            with Session(self.engine) as session:
-                users_added = 0
-                users_updated = 0
-                users_skipped = 0
-                
-                for idx, row in df_users.iterrows():
-                    username = str(row['Имя пользователя']).strip().lower()
-                    
-                    existing_user = session.execute(
-                        select(User).where(User.username == username)
-                    ).scalar_one_or_none()
-                    
-                    if not existing_user:
-                        user = User(
-                            username=username,
-                            last_name=str(row['Фамилия']).strip() if pd.notna(row['Фамилия']) else None,
-                            first_name=str(row['Имя']).strip() if pd.notna(row['Имя']) else None,
-                            middle_name=str(row['Отчество']).strip() if pd.notna(row['Отчество']) else None,
-                            department=str(row['Отдел']).strip() if pd.notna(row['Отдел']) else None
-                        )
-                        session.add(user)
-                        users_added += 1
-                        logger.debug(f"  + Добавлен: {username}")
-                    else:
-                        # Обновляем информацию если нужно
-                        updated = False
-                        if pd.notna(row['Фамилия']) and not existing_user.last_name:
-                            existing_user.last_name = str(row['Фамилия']).strip()
-                            updated = True
-                        if pd.notna(row['Имя']) and not existing_user.first_name:
-                            existing_user.first_name = str(row['Имя']).strip()
-                            updated = True
-                        if pd.notna(row['Отдел']) and not existing_user.department:
-                            existing_user.department = str(row['Отдел']).strip()
-                            updated = True
-                        
-                        if updated:
-                            users_updated += 1
-                            logger.debug(f"  ~ Обновлен: {username}")
-                        else:
-                            users_skipped += 1
-                
-                session.commit()
-                
-                # Кэшируем пользователей
-                all_users = session.execute(select(User)).scalars().all()
-                self.users_cache = {u.username: u.id for u in all_users}
-                
-                logger.info(f"  ✅ Результат: добавлено {users_added}, обновлено {users_updated}, пропущено {users_skipped}")
-                logger.info(f"  📊 Всего пользователей в БД: {len(self.users_cache)}")
-                
-        except Exception as e:
-            logger.error(f"❌ Ошибка при загрузке пользователей: {e}")
-            raise
 
-    def load_equipment(self, turbines_file: str) -> None:
-        """Загрузка оборудования из Excel"""
-        if not Path(turbines_file).exists():
-            logger.error(f"Файл не найден: {turbines_file}")
-            return
-            
-        logger.info(f"📥 Загрузка турбин из {turbines_file}")
-        
-        try:
-            # Читаем турбины
-            df_turbines = pd.read_excel(turbines_file, sheet_name='Турбины УТЗ')
-            logger.info(f"  Найдено {len(df_turbines)} турбин")
-            
-            # Читаем заказы
-            orders_map = {}
-            try:
-                df_orders = pd.read_excel(turbines_file, sheet_name='Номер Заказов')
-                logger.info(f"  Найдено {len(df_orders)} заказов")
-                
-                for _, row in df_orders.iterrows():
-                    if pd.notna(row.iloc[0]):
-                        order_no = str(row.iloc[0]).strip()
-                        # Извлекаем последние 5 цифр для маппинга
-                        match = re.search(r'(\d{5})(?:\D|$)', order_no)
-                        if match:
-                            orders_map[match.group(1)] = order_no
-                
-                logger.info(f"  Создан маппинг для {len(orders_map)} заказов")
-            except Exception as e:
-                logger.warning(f"  ⚠️  Не удалось загрузить заказы: {e}")
-            
-            with Session(self.engine) as session:
-                equipment_added = 0
-                equipment_skipped = 0
-                
-                for _, row in df_turbines.iterrows():
-                    factory_no = str(int(row['Зав№'])) if pd.notna(row['Зав№']) else None
-                    if not factory_no:
-                        continue
-                    
-                    existing = session.execute(
-                        select(Equipment).where(Equipment.factory_no == factory_no)
-                    ).scalar_one_or_none()
-                    
-                    if not existing:
-                        # Пытаемся найти номер заказа
-                        order_no = orders_map.get(factory_no, None)
-                        
-                        equipment = Equipment(
-                            eq_type="Турбина",
-                            factory_no=factory_no,
-                            order_no=order_no,
-                            label=str(row['Маркировка турбины']).strip() if pd.notna(row['Маркировка турбины']) else None,
-                            station_no=str(row['Станц. №']).strip() if pd.notna(row['Станц. №']) else None,
-                            station_object=str(row['Наименование станции']).strip() if pd.notna(row['Наименование станции']) else None,
-                            notes=None
-                        )
-                        session.add(equipment)
-                        equipment_added += 1
-                        logger.debug(f"  + Турбина {factory_no}: {equipment.label}")
-                    else:
-                        equipment_skipped += 1
-                
-                session.commit()
-                
-                # Кэшируем оборудование
-                all_equipment = session.execute(select(Equipment)).scalars().all()
-                self.equipment_cache = {e.factory_no: e.id for e in all_equipment if e.factory_no}
-                
-                logger.info(f"  ✅ Результат: добавлено {equipment_added}, пропущено {equipment_skipped}")
-                logger.info(f"  📊 Всего оборудования в БД: {len(self.equipment_cache)}")
-                
-        except Exception as e:
-            logger.error(f"❌ Ошибка при загрузке оборудования: {e}")
-            raise
-
-    def load_documents(self, documents_file: str, default_username: str = "yuvabramov") -> None:
-        """Загрузка документов из Excel"""
-        if not Path(documents_file).exists():
-            logger.error(f"Файл не найден: {documents_file}")
-            return
-            
-        logger.info(f"📥 Загрузка документов из {documents_file}")
-        
-        try:
-            df_docs = pd.read_excel(documents_file)
-            logger.info(f"  Найдено {len(df_docs)} документов")
-            
-            # Получаем ID дефолтного пользователя
-            default_user_id = self.users_cache.get(default_username)
-            if not default_user_id:
-                logger.error(f"  ❌ Пользователь {default_username} не найден!")
-                if self.users_cache:
-                    default_username = list(self.users_cache.keys())[0]
-                    default_user_id = self.users_cache[default_username]
-                    logger.info(f"  Используем первого доступного пользователя: {default_username}")
-                else:
-                    logger.error("  ❌ Нет пользователей в БД!")
-                    return
-            
-            with Session(self.engine) as session:
-                documents_added = 0
-                documents_skipped = 0
-                virtual_equipment_created = 0
-                
-                for idx, row in df_docs.iterrows():
-                    try:
-                        # Получаем numeric
-                        numeric = int(row['№ п/п']) if pd.notna(row['№ п/п']) else idx + 1
-                        
-                        # Проверяем существование по numeric
-                        existing = session.execute(
-                            select(Document).where(Document.numeric == numeric)
-                        ).scalar_one_or_none()
-                        
-                        if existing:
-                            documents_skipped += 1
-                            continue
-                        
-                        # Извлекаем данные
-                        doc_name = str(row['Обозначение']).strip() if pd.notna(row['Обозначение']) else f"DOC-{numeric}"
-                        doc_title = str(row['Наименование']).strip() if pd.notna(row['Наименование']) else ""
-                        note_text = str(row.get('Примечание', '')).strip() if pd.notna(row.get('Примечание')) else ""
-                        
-                        # Формируем note
-                        note_parts = []
-                        if doc_title:
-                            note_parts.append(doc_title)
-                        if note_text and note_text not in ['nan', '']:
-                            note_parts.append(note_text)
-                        note = ". ".join(note_parts) if note_parts else None
-                        
-                        # Определяем equipment_id
-                        factory_no_raw = row.get('Зав.№ турбины первичного применения', '')
-                        factory_no = str(int(factory_no_raw)) if pd.notna(factory_no_raw) and str(factory_no_raw) not in ['00000', '0'] else None
-                        
-                        equipment_id = None
-                        if factory_no:
-                            equipment_id = self.equipment_cache.get(factory_no)
-                        
-                        # Если нет оборудования, создаем виртуальное
-                        if not equipment_id:
-                            # Ищем номер заказа в примечании
-                            order_match = re.search(r'К-(\d+)', note_text) if note_text else None
-                            if order_match:
-                                virtual_no = f"VIRT-K-{order_match.group(1)}"
-                            else:
-                                virtual_no = f"VIRT-DOC-{numeric}"
-                            
-                            if virtual_no not in self.equipment_cache:
-                                virtual_eq = Equipment(
-                                    eq_type="Вспомогательное оборудование",
-                                    factory_no=virtual_no,
-                                    order_no=order_match.group(0) if order_match else None,
-                                    label=f"Виртуальное для {doc_name}",
-                                    notes=f"Создано для документа №{numeric}"
-                                )
-                                session.add(virtual_eq)
-                                session.flush()
-                                self.equipment_cache[virtual_no] = virtual_eq.id
-                                virtual_equipment_created += 1
-                            
-                            equipment_id = self.equipment_cache[virtual_no]
-                        
-                        # Создаем документ
-                        document = Document(
-                            numeric=numeric,
-                            reg_date=datetime.now(),
-                            doc_name=doc_name,
-                            note=note,
-                            equipment_id=equipment_id,
-                            user_id=default_user_id
-                        )
-                        session.add(document)
-                        documents_added += 1
-                        
-                        if documents_added % 100 == 0:
-                            session.commit()
-                            logger.info(f"    Обработано {documents_added} документов...")
-                            
-                    except Exception as e:
-                        logger.warning(f"  ⚠️  Ошибка в строке {idx}: {e}")
-                        continue
-                
-                session.commit()
-                
-                logger.info(f"  ✅ Результат: добавлено {documents_added}, пропущено {documents_skipped}")
-                logger.info(f"  📊 Создано виртуального оборудования: {virtual_equipment_created}")
-                
-        except Exception as e:
-            logger.error(f"❌ Ошибка при загрузке документов: {e}")
-            raise
-
-    def get_statistics(self) -> None:
-        """Вывод статистики БД"""
-        with Session(self.engine) as session:
-            stats = {
-                'users': session.query(User).count(),
-                'equipment': session.query(Equipment).count(),
-                'equipment_turbines': session.query(Equipment).filter(Equipment.eq_type == "Турбина").count(),
-                'equipment_virtual': session.query(Equipment).filter(Equipment.factory_no.like('VIRT%')).count(),
-                'documents': session.query(Document).count()
-            }
-            
-            print("\n" + "="*60)
-            print("📊 СТАТИСТИКА БАЗЫ ДАННЫХ:")
-            print("="*60)
-            print(f"👤 Пользователей: {stats['users']}")
-            print(f"⚙️  Всего оборудования: {stats['equipment']}")
-            print(f"   - Турбин: {stats['equipment_turbines']}")
-            print(f"   - Виртуального: {stats['equipment_virtual']}")
-            print(f"📄 Документов: {stats['documents']}")
-            print("="*60 + "\n")
-
-def main():
-    """Основная функция миграции"""
-    BASE_DIR = Path(__file__).parent.parent
-    DATA_DIR = BASE_DIR / "data"
-    
-    # Файлы данных
-    files = {
-        'users': DATA_DIR / "Копия Актуальный список пользователей СКБт.xls",
-        'turbines': DATA_DIR / "Копия Паровые Турбины.xlsx",
-        'documents': DATA_DIR / "Копия Номера до 20к.xlsx"
-    }
-    
-    # Проверяем наличие файлов
-    print("\n🔍 Проверка файлов данных:")
-    all_files_exist = True
-    for name, path in files.items():
-        if path.exists():
-            print(f"  ✅ {name}: {path.name}")
-        else:
-            print(f"  ❌ {name}: НЕ НАЙДЕН ({path})")
-            all_files_exist = False
-    
-    if not all_files_exist:
-        print("\n❌ Загрузите все необходимые файлы в папку data/")
-        return 1
-    
-    print("\n" + "="*60)
-    print("🚀 НАЧАЛО МИГРАЦИИ ДАННЫХ")
-    print("="*60)
-    
+def normalize_int_str(value: object) -> str:
+    """Return clean integer string from messy excel cell like '21501', '21501.0', ' 21501 '."""
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return ""
+    # Try float -> int -> str
     try:
-        migration = ExcelDataMigration()
-        
-        # Миграция по этапам
-        print("\n📥 ЭТАП 1: Загрузка пользователей...")
-        migration.load_users(str(files['users']))
-        
-        print("\n📥 ЭТАП 2: Загрузка оборудования...")
-        migration.load_equipment(str(files['turbines']))
-        
-        print("\n📥 ЭТАП 3: Загрузка документов...")
-        migration.load_documents(str(files['documents']))
-        
-        # Статистика
-        migration.get_statistics()
-        
-        print("✅ МИГРАЦИЯ ЗАВЕРШЕНА УСПЕШНО!\n")
-        return 0
-        
+        f = float(s)
+        if f.is_integer():
+            return str(int(f))
+    except Exception:
+        pass
+    # Fallback to first digit sequence
+    m = re.search(r"\d+", s)
+    return m.group(0) if m else ""
+
+
+def load_users(session: Session, path: str) -> None:
+    logger.info(f"Loading users from {path}")
+    # engine=xlrd for .xls
+    df = pd.read_excel(path, dtype=str, engine="xlrd").fillna("")
+    col_map = {
+        "Имя пользователя": "username",
+        "Фамилия": "last_name",
+        "Имя": "first_name",
+        "Отчество": "middle_name",
+        "Отдел": "department",
+    }
+    df = df.rename(columns=col_map)
+    for c in ["username", "last_name", "first_name", "middle_name", "department"]:
+        if c not in df.columns:
+            df[c] = ""
+    df["username"] = df["username"].str.strip().str.lower()
+
+    records = df[["username", "last_name", "first_name", "middle_name", "department"]].to_dict("records")
+    # Default migration user
+    records.append(
+        {
+            "username": "migration_user",
+            "last_name": "System",
+            "first_name": "Migration",
+            "middle_name": "",
+            "department": "IT",
+        }
+    )
+    if not records:
+        logger.warning("No users to insert")
+        return
+
+    stmt = insert(User).values(records).on_conflict_do_nothing(index_elements=["username"])
+    res = session.execute(stmt)
+    session.commit()
+    logger.info(f"Users processed: {len(records)}, inserted: {res.rowcount}")
+
+
+def load_equipment(session: Session, path: str) -> None:
+    logger.info(f"Loading equipment from {path}")
+    df_t = pd.read_excel(path, sheet_name="Турбины УТЗ", dtype=str).fillna("")
+    df_t = df_t.rename(
+        columns={
+            "Зав№": "factory_no",
+            "Маркировка турбины": "label",
+            "Наименование станции": "station_object",
+            "Станц. №": "station_no",
+        }
+    )
+    df_t["factory_no"] = df_t["factory_no"].map(normalize_int_str)
+    df_t["eq_type"] = "Турбина"
+
+    eq_records = df_t[["factory_no", "label", "station_object", "station_no", "eq_type"]].to_dict("records")
+
+    # Placeholder for docs without factory_no
+    eq_records.append(
+        {
+            "factory_no": "00000",
+            "eq_type": "Вспомогательное оборудование",
+            "label": "General/Unlinked",
+            "station_object": None,
+            "station_no": None,
+            "notes": "Auto-created for documents without factory_no",
+        }
+    )
+
+    # Orders mapping: last 5 digits -> order_no
+    try:
+        df_o = pd.read_excel(path, sheet_name="Номер Заказов", dtype=str).fillna("")
+        df_o = df_o.rename(columns={"№ производственного заказа": "order_no"})
+        orders_map: Dict[str, str] = {}
+        for _, r in df_o.iterrows():
+            order = str(r.get("order_no", "")).strip()
+            if not order:
+                continue
+            m = re.search(r"(\d{5})(?:\D|$)", order)
+            if m:
+                orders_map[m.group(1)] = order
+        for item in eq_records:
+            fn = (item.get("factory_no") or "").strip()
+            if fn in orders_map:
+                item["order_no"] = orders_map[fn]
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка: {e}")
-        print(f"\n❌ МИГРАЦИЯ ПРЕРВАНА: {e}\n")
-        return 1
+        logger.warning(f"Orders sheet not applied: {e}")
+
+    stmt = insert(Equipment).values(eq_records).on_conflict_do_nothing(index_elements=["factory_no"])
+    res = session.execute(stmt)
+    session.commit()
+    logger.info(f"Equipment processed: {len(eq_records)}, inserted: {res.rowcount}")
+
+
+def load_documents(session: Session, path: str) -> None:
+    logger.info(f"Loading documents from {path}")
+    df = pd.read_excel(path, dtype=str).fillna("")
+
+    existing_nums = {n for (n,) in session.execute(select(Document.numeric)).all()}
+    rows = session.execute(select(Equipment.id, Equipment.factory_no)).all()
+    eq_cache: Dict[str, int] = {fn: eid for (eid, fn) in rows if fn}
+
+    default_user_id = session.execute(
+        select(User.id).where(User.username == "migration_user")
+    ).scalar_one_or_none()
+    if not default_user_id:
+        raise RuntimeError("migration_user is not found")
+
+    to_add = []
+    skipped = 0
+    virt_created = 0
+
+    for idx, row in df.iterrows():
+        raw_num = str(row.get("№ п/п", "")).strip()
+        if not raw_num.isdigit():
+            skipped += 1
+            continue
+        numeric = int(raw_num)
+        if numeric in existing_nums:
+            skipped += 1
+            continue
+
+        doc_name = str(row.get("Обозначение", "")).strip() or f"DOC-{numeric}"
+        title = str(row.get("Наименование", "")).strip()
+        note_extra = str(row.get("Примечание", "")).strip()
+        note = " | ".join([p for p in [title, note_extra] if p]) or None
+
+        factory_raw = row.get("Зав.№ турбины первичного применения", "")
+        factory_no = normalize_int_str(factory_raw)
+
+        eq_id = None
+        if factory_no and factory_no != "00000":
+            eq_id = eq_cache.get(factory_no)
+
+        if not eq_id:
+            # Try placeholder
+            eq_id = eq_cache.get("00000")
+            if not eq_id:
+                virt_no = f"VIRT-DOC-{numeric}"
+                if virt_no not in eq_cache:
+                    veq = Equipment(
+                        eq_type="Вспомогательное оборудование",
+                        factory_no=virt_no,
+                        label=f"Virtual for {doc_name}",
+                        notes=f"Created for document #{numeric}",
+                    )
+                    session.add(veq)
+                    session.flush()
+                    eq_cache[virt_no] = veq.id
+                    virt_created += 1
+                eq_id = eq_cache[virt_no]
+
+        to_add.append(
+            {
+                "numeric": numeric,
+                "doc_name": doc_name,
+                "note": note,
+                "equipment_id": eq_id,
+                "user_id": default_user_id,
+            }
+        )
+
+    if to_add:
+        stmt = insert(Document).values(to_add).on_conflict_do_nothing(index_elements=["numeric"])
+        res = session.execute(stmt)
+        session.commit()
+        logger.info(
+            f"Documents prepared: {len(to_add)}, inserted: {res.rowcount}, "
+            f"skipped: {skipped}, virtual_eq_created: {virt_created}"
+        )
+    else:
+        logger.info("No documents to insert")
+
+
+def main() -> int:
+    files = {
+        "users": project_root / "data" / "Копия Актуальный список пользователей СКБт.xls",
+        "equipment": project_root / "data" / "Копия Паровые Турбины.xlsx",
+        "documents": project_root / "data" / "Копия Номера до 20к.xlsx",
+    }
+    # Check files exist
+    for name, p in files.items():
+        if not p.exists():
+            print(f"ERROR: missing file {p}")
+            return 1
+
+    db_url = resolve_db_url()
+    engine = create_engine(db_url, pool_pre_ping=True)
+
+    with Session(engine) as session:
+        load_users(session, str(files["users"]))
+        load_equipment(session, str(files["equipment"]))
+        load_documents(session, str(files["documents"]))
+
+    print("Migration finished")
+    return 0
+
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())
