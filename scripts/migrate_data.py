@@ -137,7 +137,7 @@ def load_equipment(session: Session, path: str) -> None:
 
     # Orders mapping: last 5 digits -> order_no
     try:
-        df_o = pd.read_excel(path, sheet_name="Номер Заказов", dtype=str).fillna("")
+        df_o = pd.read_excel(path, sheet_name="Номер заказов", dtype=str).fillna("")
         df_o = df_o.rename(columns={"№ производственного заказа": "order_no"})
         orders_map: Dict[str, str] = {}
         for _, r in df_o.iterrows():
