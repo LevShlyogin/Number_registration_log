@@ -1,11 +1,6 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
-from datetime import datetime
 
-
-class AdminReserveSpecific(BaseModel):
-    equipment_id: int
-    numbers: list[int] = Field(min_length=1)
+from pydantic import BaseModel
 
 
 class GoldenSuggestOut(BaseModel):

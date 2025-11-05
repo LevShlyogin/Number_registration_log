@@ -177,7 +177,17 @@ const { mutate: createEquipment, isPending: isSaving } = useMutation({
 async function save() {
   const { valid } = await formRef.value.validate()
   if (valid) {
-    createEquipment(formData as EquipmentIn)
+    const payload: EquipmentIn = {
+      eq_type: formData.eq_type!,
+      station_object: formData.station_object || null,
+      station_no: formData.station_no || null,
+      factory_no: formData.factory_no || null,
+      order_no: formData.order_no || null,
+      label: formData.label || null,
+      notes: formData.notes || null,
+    }
+
+    createEquipment(payload)
   } else {
     notifier.warning('Пожалуйста, исправьте ошибки в форме.')
   }

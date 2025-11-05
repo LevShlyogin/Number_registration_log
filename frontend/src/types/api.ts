@@ -25,16 +25,16 @@ export interface ReserveNumbersIn {
   requested_count: number
 }
 
+export interface GoldenNumberReservationIn {
+  quantity: number
+  equipment_id: number
+  ttl_seconds?: number
+}
+
 // Ответ от сервера после резервирования
 export interface ReserveNumbersOut {
   session_id: string
   reserved_numbers: number[]
-}
-
-// Полезная нагрузка для резервирования конкретных номеров (админ)
-export interface AdminReserveSpecific {
-  equipment_id: number
-  numbers: number[]
 }
 
 // Тип для назначения номера
@@ -47,6 +47,7 @@ export interface AssignNumberIn {
 export interface AddNumbersIn {
   requested_count?: number
   numbers?: number[]
+  quantity_golden?: number
 }
 
 // Структура объекта 'created'

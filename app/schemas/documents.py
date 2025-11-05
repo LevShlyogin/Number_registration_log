@@ -25,6 +25,7 @@ class DocumentOut(BaseModel):
     class Config:
         from_attributes = True
 
+
 class GoldenNumberReservationRequest(BaseModel):
     """Схема для запроса на резервирование 'золотых' номеров."""
     quantity: int = Field(..., gt=0, description="Количество золотых номеров для резервирования.")

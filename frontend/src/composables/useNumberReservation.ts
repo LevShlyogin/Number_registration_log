@@ -1,27 +1,24 @@
 import { useMutation } from '@tanstack/vue-query'
 import type {
-  AdminReserveSpecific,
   ReserveNumbersIn,
   ReserveNumbersOut,
   AddNumbersIn,
+  GoldenNumberReservationIn,
 } from '@/types/api'
 import apiClient from '@/api'
 
-// Обычный резерв
 const reserveNumbers = async (payload: ReserveNumbersIn): Promise<ReserveNumbersOut> => {
   const { data } = await apiClient.post<ReserveNumbersOut>('/sessions/reserve', payload)
   return data
 }
 
-// Резерв конкретных номеров (админ)
-const reserveSpecificNumbers = async (
-  payload: AdminReserveSpecific,
+const reserveGoldenNumbers = async (
+  payload: GoldenNumberReservationIn,
 ): Promise<ReserveNumbersOut> => {
-  const { data } = await apiClient.post<ReserveNumbersOut>('/admin/reserve-specific', payload)
+  const { data } = await apiClient.post<ReserveNumbersOut>('/documents/reserve-golden', payload)
   return data
 }
 
-// Добавление номеров в существующую сессию
 const addNumbersToSession = async ({
   sessionId,
   payload,
@@ -38,19 +35,21 @@ export function useNumberReservation() {
     mutate: reserve,
     isPending: isLoading,
     error: reserveError,
-  } = useMutation<ReserveNumbersOut, Error, ReserveNumbersIn>({
-    mutationFn: reserveNumbers,
+  } = useMutation<ReserveNumbersOut, Error, ReserveNumbersIn>({ mutationFn: reserveNumbers })
+
+  const {
+    mutate: reserveGolden,
+    isPending: isReservingGolden,
+    error: reserveGoldenError,
+  } = useMutation<ReserveNumbersOut, Error, GoldenNumberReservationIn>({
+    mutationFn: reserveGoldenNumbers,
   })
 
   const {
-    mutate: reserveSpecific,
-    isPending: isReservingSpecific,
-    error: reserveSpecificError,
-  } = useMutation<ReserveNumbersOut, Error, AdminReserveSpecific>({
-    mutationFn: reserveSpecificNumbers,
-  })
-
-  const { mutate: addNumbers, isPending: isAdding } = useMutation<number[], Error, { sessionId: string; payload: AddNumbersIn }>({
+    mutate: addNumbers,
+    isPending: isAdding,
+    error: addNumbersError,
+  } = useMutation<number[], Error, { sessionId: string; payload: AddNumbersIn }>({
     mutationFn: addNumbersToSession,
   })
 
@@ -58,10 +57,11 @@ export function useNumberReservation() {
     reserve,
     isLoading,
     reserveError,
-    reserveSpecific,
-    isReservingSpecific,
-    reserveSpecificError,
+    reserveGolden,
+    isReservingGolden,
+    reserveGoldenError,
     addNumbers,
     isAdding,
+    addNumbersError,
   }
 }

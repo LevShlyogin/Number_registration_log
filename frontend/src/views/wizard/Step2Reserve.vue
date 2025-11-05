@@ -12,10 +12,10 @@
           <h4 class="text-subtitle-1 font-weight-medium mb-4">Обычный резерв</h4>
           <v-form @submit.prevent="handleReserve">
             <v-text-field
-              v-model.number="quantity"
+              v-model.number="quantity.normal"
               type="number"
               label="Количество номеров"
-              :rules="[rules.required, rules.positive]"
+              :rules="[rules.positive]"
               variant="filled"
               flat
               hide-details="auto"
@@ -23,7 +23,6 @@
               max="100"
               class="mb-4"
             />
-            <!-- ИЗМЕНЕНИЕ ЗДЕСЬ: используем 'anyLoading' -->
             <v-btn type="submit" :loading="anyLoading" color="primary" variant="flat">
               <v-icon start>{{
                 wizardStore.hasActiveSession ? 'mdi-plus' : 'mdi-lock-outline'
@@ -43,15 +42,17 @@
           </h4>
           <v-form @submit.prevent="handleReserveGolden">
             <v-text-field
-              v-model="goldenNumbersInput"
-              label="Номера через запятую"
-              placeholder="Например: 1200, 1300, 2500"
+              v-model.number="quantity.golden"
+              type="number"
+              label="Количество 'золотых' номеров"
+              :rules="[rules.positive]"
               variant="filled"
               flat
               hide-details="auto"
+              min="1"
+              max="100"
               class="mb-4"
-            ></v-text-field>
-            <!-- ИЗМЕНЕНИЕ ЗДЕСЬ: используем 'anyLoading' -->
+            />
             <v-btn type="submit" :loading="anyLoading" color="amber" variant="flat">
               <v-icon start>{{
                 wizardStore.hasActiveSession ? 'mdi-plus' : 'mdi-lock-outline'
@@ -106,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWizardStore } from '@/stores/wizard'
 import { useAuthStore } from '@/stores/auth'
@@ -120,19 +121,13 @@ const router = useRouter()
 const wizardStore = useWizardStore()
 const auth = useAuthStore()
 const notifier = useNotifier()
-const { reserve, isLoading, reserveSpecific, isReservingSpecific, addNumbers, isAdding } =
+const { reserve, isLoading, reserveGolden, isReservingGolden, addNumbers, isAdding } =
   useNumberReservation()
 
-const quantity = ref(1)
-const goldenNumbersInput = ref('')
-const anyLoading = computed(() => isLoading.value || isReservingSpecific.value || isAdding.value)
-
+const quantity = reactive({ normal: 1, golden: 1 })
+const anyLoading = computed(() => isLoading.value || isReservingGolden.value || isAdding.value)
 const sortedReservedNumbers = computed(() => [...wizardStore.reservedNumbers].sort((a, b) => a - b))
-
-const rules = {
-  required: (value: number) => !!value || 'Это поле обязательно.',
-  positive: (value: number) => value > 0 || 'Количество должно быть больше нуля.',
-}
+const rules = { positive: (v: number) => v > 0 || 'Количество должно быть больше нуля.' }
 
 function handleApiError(error: unknown) {
   let message = 'Произошла неизвестная ошибка'
@@ -145,32 +140,28 @@ function handleApiError(error: unknown) {
 }
 
 function handleReserve() {
-  if (anyLoading.value) return
+  if (anyLoading.value || !quantity.normal || quantity.normal <= 0) return
 
   if (wizardStore.hasActiveSession) {
     addNumbers(
-      {
-        sessionId: wizardStore.currentSessionId!,
-        payload: { requested_count: quantity.value },
-      },
+      { sessionId: wizardStore.currentSessionId!, payload: { requested_count: quantity.normal } },
       {
         onSuccess: (newNumbers) => {
           wizardStore.reservedNumbers.push(...newNumbers)
           notifier.success(`Добавлено ${newNumbers.length} номер(а)`)
+          quantity.normal = 1
         },
         onError: handleApiError,
       },
     )
   } else {
     reserve(
-      {
-        equipment_id: Number(props.equipmentId),
-        requested_count: quantity.value,
-      },
+      { equipment_id: Number(props.equipmentId), requested_count: quantity.normal },
       {
         onSuccess: (data) => {
           wizardStore.setSession(data.session_id, data.reserved_numbers)
-          notifier.success(`Успешно зарезервировано ${data.reserved_numbers.length} номер(а)`)
+          notifier.success(`Зарезервировано ${data.reserved_numbers.length} номер(а)`)
+          quantity.normal = 1
         },
         onError: handleApiError,
       },
@@ -179,42 +170,34 @@ function handleReserve() {
 }
 
 function handleReserveGolden() {
-  if (anyLoading.value) return
-  const numbers = goldenNumbersInput.value
-    .split(',')
-    .map((n) => parseInt(n.trim(), 10))
-    .filter(Boolean)
-  if (numbers.length === 0) {
-    notifier.warning('Введите корректные номера.')
-    return
-  }
+  if (anyLoading.value || !quantity.golden || quantity.golden <= 0) return
 
   if (wizardStore.hasActiveSession) {
     addNumbers(
       {
         sessionId: wizardStore.currentSessionId!,
-        payload: { numbers },
+        payload: { quantity_golden: quantity.golden },
       },
       {
         onSuccess: (newNumbers) => {
           wizardStore.reservedNumbers.push(...newNumbers)
-          goldenNumbersInput.value = ''
           notifier.success(`Добавлено ${newNumbers.length} "золотых" номер(а)`)
+          quantity.golden = 1
         },
         onError: handleApiError,
       },
     )
   } else {
-    reserveSpecific(
+    reserveGolden(
       {
         equipment_id: Number(props.equipmentId),
-        numbers,
+        quantity: quantity.golden,
       },
       {
         onSuccess: (data) => {
           wizardStore.setSession(data.session_id, data.reserved_numbers)
-          goldenNumbersInput.value = ''
           notifier.success(`Зарезервировано ${data.reserved_numbers.length} "золотых" номер(а)`)
+          quantity.golden = 1
         },
         onError: handleApiError,
       },
