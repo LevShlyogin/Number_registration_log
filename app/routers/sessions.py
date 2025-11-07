@@ -115,6 +115,7 @@ async def add_numbers(
             user_id=user.id,
             requested_count=payload.requested_count,
             numbers=payload.numbers,
+            quantity_golden=payload.quantity_golden,
             is_admin=user.is_admin
         )
         return new_numbers

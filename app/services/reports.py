@@ -129,6 +129,7 @@ class ReportsService:
             payload.append({
                 "id": id_,
                 "doc_no": format_doc_no(numeric),
+                "numeric": numeric,
                 "reg_date": reg_date.strftime('%d.%m.%Y %H:%M') if reg_date else '',
                 "doc_name": doc_name,
                 "note": note,

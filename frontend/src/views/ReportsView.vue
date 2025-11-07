@@ -9,10 +9,8 @@
       </v-col>
     </v-row>
 
-    <!-- Используем унифицированный компонент фильтров -->
     <search-filters v-model="filters" @reset="resetFilters" />
 
-    <!-- Таблица с результатами -->
     <v-card flat class="border">
       <v-card-title class="d-flex align-center">
         Результаты
@@ -29,24 +27,19 @@
         </v-btn>
       </v-card-title>
       <v-divider></v-divider>
-      <!-- v-data-table-server для работы с серверными данными -->
-      <v-data-table-server
+
+      <v-data-table
         v-model:items-per-page="tableOptions.itemsPerPage"
         v-model:page="tableOptions.page"
-        v-model:sort-by="tableOptions.sortBy"
         :headers="headers"
         :items="report?.items || []"
-        :items-length="report?.totalItems || 0"
         :loading="isLoading"
-        item-value="id"
+        item-value="numeric"
         class="elevation-0"
         hover
         density="compact"
       >
-        <template #[`item.created`]="{ value }">
-          {{ value ? new Date(value).toLocaleDateString() : '-' }}
-        </template>
-
+        <!-- Шаблоны для форматирования остаются те же -->
         <template #no-data>
           <div class="text-center pa-6">
             <v-icon
@@ -61,17 +54,16 @@
             </p>
           </div>
         </template>
-
         <template #loading>
           <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
         </template>
-      </v-data-table-server>
+      </v-data-table>
     </v-card>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useReports } from '@/composables/useReports'
 import { useAuthStore } from '@/stores/auth'
 import * as XLSX from 'xlsx'
@@ -82,38 +74,31 @@ import SearchFilters from '@/components/common/SearchFilters.vue'
 const authStore = useAuthStore()
 const notifier = useNotifier()
 
-const lastSessionId = history.state.lastSessionId as string | undefined
-let initialFilters: Partial<SearchParams> = {}
-if (lastSessionId) {
-  // Если пришли из шага, фильтруем по ID сессии
-  initialFilters = { session_id: lastSessionId }
-} else if (authStore.user) {
-  // Иначе фильтруем по имени текущего пользователя
-  initialFilters = { username: authStore.user.username }
-}
+// Состояние по умолчанию для фильтров
+const initialFilters: Partial<SearchParams> = authStore.user
+  ? { username: authStore.user.username }
+  : {}
 
-const { report, isLoading, tableOptions, filters, resetFiltersAndRefetch, fetchAllReportItemsForExport } =
-  useReports(initialFilters)
-
+const {
+  report,
+  isLoading,
+  tableOptions,
+  filters,
+  resetFiltersAndRefetch,
+  fetchAllReportItemsForExport,
+} = useReports(initialFilters)
 const isExporting = ref(false)
 
 const headers = [
   { title: '№ Документа', key: 'doc_no', sortable: true },
-  { title: 'Дата регистрации', key: 'created', sortable: true },
-  { title: 'Наименование документа', key: 'doc_name', sortable: false },
-  { title: 'Пользователь', key: 'user', sortable: true },
+  { title: 'Дата регистрации', key: 'reg_date', sortable: true },
+  { title: 'Наименование', key: 'doc_name', sortable: false },
+  { title: 'Примечание', key: 'note', sortable: false },
+  { title: 'Пользователь', key: 'username', sortable: true },
+  { title: '№ заказа', key: 'order_no', sortable: false },
   { title: 'Станция/Объект', key: 'station_object', sortable: false },
   { title: 'Тип оборуд.', key: 'eq_type', sortable: false },
-  { title: 'Зав. №', key: 'factory_no', sortable: false },
-  { title: 'Ст. №', key: 'station_no', sortable: false },
-  { title: 'Маркировка', key: 'label', sortable: false },
 ] as const
-
-onMounted(() => {
-  if (history.state.lastSessionId) {
-    history.replaceState({ ...history.state, lastSessionId: undefined }, '')
-  }
-})
 
 function resetFilters() {
   resetFiltersAndRefetch()
@@ -123,31 +108,26 @@ async function exportToExcel() {
   isExporting.value = true
   try {
     const allItems = await fetchAllReportItemsForExport()
-
     if (!allItems || allItems.length === 0) {
       notifier.warning('Нет данных для экспорта!')
       return
     }
-
     const dataToExport = allItems.map((item: ReportItem) => ({
       '№ Документа': item.doc_no,
-      'Дата регистрации': new Date(item.created).toLocaleDateString(),
+      'Дата регистрации': item.reg_date,
       'Наименование документа': item.doc_name,
-      'Пользователь': item.user,
+      'Примечание': item.note,
+      'Пользователь': item.username,
+      '№ заказа': item.order_no,
       'Станция/Объект': item.station_object,
       'Тип оборуд.': item.eq_type,
-      'Зав. №': item.factory_no,
-      'Ст. №': item.station_no,
-      'Маркировка': item.label,
     }))
-
     const worksheet = XLSX.utils.json_to_sheet(dataToExport)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчет')
     XLSX.writeFile(workbook, `Отчет_Регистрации_${new Date().toISOString().split('T')[0]}.xlsx`)
   } catch (error) {
-    console.error('Ошибка при экспорте в Excel:', error)
-    notifier.error('Произошла ошибка при формировании отчета для экспорта.')
+    notifier.error(`Произошла ошибка при формировании отчета для экспорта: ${error}`)
   } finally {
     isExporting.value = false
   }

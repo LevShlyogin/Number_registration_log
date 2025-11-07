@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.doc_number import DocNumber
-from app.repositories.sessions import SessionsRepository
-from app.repositories.doc_numbers import DocNumbersRepository
-from app.repositories.counter import CounterRepository
+from app.models.doc_number import DocNumber, DocNumStatus
 from app.models.session import SessionStatus, Session
+from app.repositories.counter import CounterRepository
+from app.repositories.doc_numbers import DocNumbersRepository
+from app.repositories.sessions import SessionsRepository
 from app.utils.numbering import is_golden
 
 
@@ -19,6 +19,34 @@ class ReservationService:
         self.sessions_repo = SessionsRepository(session)
         self.numbers_repo = DocNumbersRepository(session)
         self.counter_repo = CounterRepository(session)
+
+    async def reserve_golden_numbers(self, *, user_id: int, equipment_id: int, quantity: int, ttl_seconds: int) -> \
+            tuple[str, list[int]]:
+        candidates = []
+        checked_num = 100
+        while len(candidates) < quantity:
+            res = await self.session.execute(select(DocNumber).where(DocNumber.numeric == checked_num))
+            existing_number = res.scalars().first()
+
+            if existing_number is None:
+                candidates.append(checked_num)
+            elif existing_number.status == DocNumStatus.released:
+                candidates.append(checked_num)
+
+            checked_num += 100
+            if checked_num > 999999:
+                break
+
+        if len(candidates) < quantity:
+            raise ValueError(f"Не удалось найти {quantity} свободных 'золотых' номеров.")
+
+        sess = await self.sessions_repo.create(
+            user_id=user_id, equipment_id=equipment_id, requested_count=quantity, ttl_seconds=ttl_seconds
+        )
+        reserved = await self.numbers_repo.reserve_specific_numbers(candidates, user_id, sess.id, ttl_seconds)
+
+        await self.session.commit()
+        return sess.id, reserved
 
     async def start_session(self, *, user_id: int, equipment_id: int, requested_count: int, ttl_seconds: int) -> tuple[
         str, list[int]]:
@@ -67,20 +95,9 @@ class ReservationService:
 
         return sorted(reserved_total)
 
-    async def admin_reserve_specific(self, *, user_id: int, equipment_id: int, numbers: list[int], ttl_seconds: int) -> \
-            tuple[str, list[int]]:
-        sess = await self.sessions_repo.create(
-            user_id=user_id, equipment_id=equipment_id, requested_count=len(numbers), ttl_seconds=ttl_seconds
-        )
-        reserved = await self.numbers_repo.reserve_specific_numbers(numbers, user_id, sess.id, ttl_seconds)
-        if not reserved:
-            await self.session.rollback()
-            raise ValueError("Не удалось зарезервировать ни один из указанных номеров (возможно, они уже заняты).")
-        await self.session.commit()
-        return sess.id, reserved
-
     async def add_numbers_to_session(self, *, session_id: str, user_id: int, requested_count: int | None,
-                                     numbers: list[int] | None, is_admin: bool) -> list[int]:
+                                     numbers: list[int] | None, quantity_golden: int | None = None, is_admin: bool) -> \
+    list[int]:
         sess = await self.sessions_repo.get(session_id)
         if not sess:
             raise ValueError("Сессия не найдена.")
@@ -88,19 +105,58 @@ class ReservationService:
         ttl = sess.ttl_seconds
         new_expires_at = datetime.utcnow() + timedelta(seconds=ttl)
         await self.session.execute(update(Session).where(Session.id == session_id).values(expires_at=new_expires_at))
+        await self.session.execute(
+            update(DocNumber).where(DocNumber.session_id == session_id).values(expires_at=new_expires_at))
 
         newly_reserved = []
-        if requested_count:  # Добавляем обычные номера
+        if requested_count:
             newly_reserved = await self._reserve_for_session(
                 session_id=session_id, user_id=user_id, count=requested_count, ttl_seconds=ttl, is_admin=is_admin
             )
         elif numbers:
-            await self.session.execute(
-                update(DocNumber).where(DocNumber.session_id == session_id).values(expires_at=new_expires_at))
             newly_reserved = await self.numbers_repo.reserve_specific_numbers(numbers, user_id, session_id, ttl)
+        elif quantity_golden:
+            if not is_admin:
+                raise ValueError("Только администраторы могут резервировать 'золотые' номера.")
+
+            candidates = await self._find_free_golden_numbers(quantity_golden)
+
+            if len(candidates) < quantity_golden:
+                raise ValueError(f"Не удалось найти {quantity_golden} свободных 'золотых' номеров.")
+
+            newly_reserved = await self.numbers_repo.reserve_specific_numbers(candidates, user_id, session_id, ttl)
 
         await self.session.commit()
         return newly_reserved
+
+    async def _find_free_golden_numbers(self, quantity: int) -> list[int]:
+        """
+        Ищет указанное количество свободных 'золотых' номеров.
+
+        Свободными считаются:
+        1. Номера, отсутствующие в таблице doc_numbers.
+        2. Номера со статусом 'released'.
+        """
+        candidates = []
+        checked_num = 100
+
+        stmt = select(DocNumber.numeric).where(
+            DocNumber.is_golden == True,
+            DocNumber.status.in_([DocNumStatus.assigned, DocNumStatus.reserved])
+        )
+        result = await self.session.execute(stmt)
+        occupied_golden_numbers = set(result.scalars().all())
+
+        while len(candidates) < quantity:
+            if checked_num not in occupied_golden_numbers:
+                candidates.append(checked_num)
+
+            checked_num += 100
+
+            if checked_num > 999900:
+                break
+
+        return candidates
 
     async def cancel_session(self, session_id: str) -> int:
         await self.sessions_repo.set_status(session_id, SessionStatus.cancelled)

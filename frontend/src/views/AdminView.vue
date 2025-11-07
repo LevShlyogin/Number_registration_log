@@ -9,7 +9,6 @@
       </v-col>
     </v-row>
 
-    <!-- Используем унифицированный компонент фильтров -->
     <search-filters v-model="filters" @reset="resetFilters" />
 
     <v-card flat class="border">
@@ -28,10 +27,10 @@
         </v-btn>
       </v-card-title>
       <v-divider></v-divider>
-      <v-data-table-server
+
+      <v-data-table
         v-model:items-per-page="tableOptions.itemsPerPage"
         v-model:page="tableOptions.page"
-        v-model:sort-by="tableOptions.sortBy"
         :headers="headers"
         :items="documents?.items || []"
         :items-length="documents?.totalItems || 0"
@@ -40,9 +39,6 @@
         density="compact"
         item-value="id"
       >
-        <template #[`item.reg_date`]="{ value }">
-          {{ value ? new Date(value).toLocaleDateString() : '-' }}
-        </template>
         <template #[`item.actions`]="{ item }">
           <v-btn
             icon="mdi-pencil"
@@ -53,13 +49,13 @@
         </template>
         <template #loading><v-skeleton-loader type="table-row@10"></v-skeleton-loader></template>
         <template #no-data><div class="text-center pa-4">Нет данных</div></template>
-      </v-data-table-server>
+      </v-data-table>
     </v-card>
 
     <edit-document-dialog
       v-model="isEditDialogOpen"
       :document="selectedDocument"
-      @success="onDocumentUpdate"
+      @update="onDocumentUpdate"
     />
   </v-container>
 </template>
@@ -73,18 +69,18 @@ import type { AdminDocumentRow, DocumentUpdatePayload } from '@/types/api'
 import SearchFilters from '@/components/common/SearchFilters.vue'
 import { useNotifier } from '@/composables/useNotifier'
 
+// --- ИЗМЕНЕНИЕ ЗДЕСЬ: Обновляем заголовки ---
 const headers = [
   { title: '№ Документа', key: 'doc_no', sortable: true },
-  { title: 'Дата регистрации', key: 'reg_date', sortable: true },
-  { title: 'Наименование документа', key: 'doc_name', sortable: false },
+  { title: 'Дата', key: 'reg_date', sortable: true },
+  { title: 'Наименование', key: 'doc_name', sortable: false },
+  { title: 'Примечание', key: 'note', sortable: false }, // <-- ДОБАВЛЕНО
   { title: 'Пользователь', key: 'username', sortable: true },
+  { title: '№ заказа', key: 'order_no', sortable: false }, // <-- ДОБАВЛЕНО
   { title: 'Станция/Объект', key: 'station_object', sortable: false },
-  { title: 'Тип оборуд.', key: 'eq_type', sortable: false },
-  { title: 'Зав. №', key: 'factory_no', sortable: false },
-  { title: 'Ст. №', key: 'station_no', sortable: false },
-  { title: 'Маркировка', key: 'label', sortable: false },
   { title: 'Действия', key: 'actions', sortable: false, align: 'end' },
 ] as const
+// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const notifier = useNotifier()
 const {
@@ -129,26 +125,21 @@ async function exportToExcel() {
       notifier.warning('Нет данных для экспорта!')
       return
     }
-    // Заголовки для Excel-файла
     const dataToExport = allItems.map((item: AdminDocumentRow) => ({
       '№ Документа': item.doc_no,
-      'Дата регистрации': new Date(item.reg_date).toLocaleDateString(),
+      'Дата регистрации': item.reg_date,
       'Наименование документа': item.doc_name,
-      'Пользователь': item.username,
-      'Станция/Объект': item.station_object,
-      'Тип оборуд.': item.eq_type,
-      'Зав. №': item.factory_no,
-      'Ст. №': item.station_no,
-      'Маркировка': item.label,
       'Примечание': item.note,
+      'Пользователь': item.username,
+      '№ заказа': item.order_no,
+      'Станция/Объект': item.station_object,
     }))
     const worksheet = XLSX.utils.json_to_sheet(dataToExport)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Админ_Отчет')
     XLSX.writeFile(workbook, `Админ_Отчет_${new Date().toISOString().split('T')[0]}.xlsx`)
   } catch (error) {
-    console.error('Ошибка при экспорте в Excel (Админ):', error)
-    notifier.error('Произошла ошибка при формировании отчета для экспорта.')
+    notifier.error(`Произошла ошибка при формировании отчета: ${error}`)
   } finally {
     isExporting.value = false
   }
