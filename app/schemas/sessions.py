@@ -33,3 +33,4 @@ class AddNumbers(BaseModel):
     requested_count: int | None = None
     numbers: list[int] | None = None
     quantity_golden: int | None = None
+    golden_requested_count: int | None = None
