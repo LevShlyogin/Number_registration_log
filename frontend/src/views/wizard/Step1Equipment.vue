@@ -60,7 +60,14 @@
           <v-btn type="submit" :loading="isLoading" color="primary" variant="flat" size="large">
             Поиск
           </v-btn>
-          <v-btn v-if="auth.isAdmin" @click="showCreateForm" color="primary" variant="outlined" size="large" class="ml-2">
+          <v-btn
+            v-if="auth.isAdmin"
+            @click="showCreateForm"
+            color="primary"
+            variant="outlined"
+            size="large"
+            class="ml-2"
+          >
             Создать новый объект
           </v-btn>
         </div>
@@ -102,8 +109,8 @@
                 size="small"
                 class="mt-1"
               >
-                создайте новый объект оборудования </v-btn
-              >
+                создайте новый объект оборудования
+              </v-btn>
             </p>
           </div>
         </v-sheet>
@@ -197,7 +204,6 @@ watch(results, (newResults) => {
 function performSearch() {
   searchAttempted.value = true
   wizardStore.selectedEquipmentId = null
-  displayedResults.value = undefined
   search(formParams)
 }
 
