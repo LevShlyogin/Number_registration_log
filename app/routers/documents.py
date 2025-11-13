@@ -12,6 +12,9 @@ from app.schemas.documents import DocumentAssignOne
 from app.schemas.responses import AssignNumberOut, CreatedDocumentInfo
 from app.utils.numbering import format_doc_no
 
+from app.services.reservation import ReservationService
+from app.schemas.documents import GoldenNumberReservationRequest, GoldenNumberReservationResponse
+
 router = APIRouter()
 
 
@@ -96,3 +99,41 @@ async def get_document(
         "formatted_no": format_doc_no(doc.numeric),
         "reg_date": doc.reg_date.isoformat() if doc.reg_date else None
     })
+
+@router.post(
+    "/reserve-golden",
+    response_model=GoldenNumberReservationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Зарезервировать 'золотые' номера"
+)
+async def reserve_golden_numbers(
+    payload: GoldenNumberReservationRequest,
+    session: AsyncSession = Depends(lifespan_session),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Резервирует указанное количество свободных номеров, заканчивающихся на '00'.
+    Доступно только для администраторов.
+    """
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Эта операция доступна только администраторам."
+        )
+
+    svc = ReservationService(session)
+    try:
+        session_id, reserved_numbers = await svc.reserve_golden_numbers(
+            user_id=user.id,
+            equipment_id=payload.equipment_id,
+            quantity=payload.quantity,
+            ttl_seconds=payload.ttl_seconds
+        )
+        return GoldenNumberReservationResponse(
+            session_id=session_id,
+            reserved_numbers=reserved_numbers
+        )
+    except HTTPException as e:
+        raise e
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
