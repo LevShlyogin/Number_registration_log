@@ -21,27 +21,14 @@ class ReservationService:
         self.counter_repo = CounterRepository(session)
 
     async def reserve_golden_numbers(self, *, user_id: int, equipment_id: int, quantity: int, ttl_seconds: int) -> \
-            tuple[str, list[int]]:
-        candidates = []
-        checked_num = 100
-        while len(candidates) < quantity:
-            res = await self.session.execute(select(DocNumber).where(DocNumber.numeric == checked_num))
-            existing_number = res.scalars().first()
-
-            if existing_number is None:
-                candidates.append(checked_num)
-            elif existing_number.status == DocNumStatus.released:
-                candidates.append(checked_num)
-
-            checked_num += 100
-            if checked_num > 999999:
-                break
+    tuple[str, list[int]]:
+        candidates = await self._find_free_golden_numbers(quantity)
 
         if len(candidates) < quantity:
             raise ValueError(f"Не удалось найти {quantity} свободных 'золотых' номеров.")
 
         sess = await self.sessions_repo.create(
-            user_id=user_id, equipment_id=equipment_id, requested_count=quantity, ttl_seconds=ttl_seconds
+            user_id=user_id, equipment_id=equipment_id, requested_count=len(candidates), ttl_seconds=ttl_seconds
         )
         reserved = await self.numbers_repo.reserve_specific_numbers(candidates, user_id, sess.id, ttl_seconds)
 
@@ -97,7 +84,7 @@ class ReservationService:
 
     async def add_numbers_to_session(self, *, session_id: str, user_id: int, requested_count: int | None,
                                      numbers: list[int] | None, quantity_golden: int | None = None, is_admin: bool) -> \
-    list[int]:
+            list[int]:
         sess = await self.sessions_repo.get(session_id)
         if not sess:
             raise ValueError("Сессия не найдена.")
@@ -130,31 +117,25 @@ class ReservationService:
         return newly_reserved
 
     async def _find_free_golden_numbers(self, quantity: int) -> list[int]:
-        """
-        Ищет указанное количество свободных 'золотых' номеров.
+        counter = await self.counter_repo.get_for_update()
 
-        Свободными считаются:
-        1. Номера, отсутствующие в таблице doc_numbers.
-        2. Номера со статусом 'released'.
-        """
-        candidates = []
-        checked_num = 100
+        start_point = max(counter.next_normal_start, counter.base_start)
+        start_golden = ((start_point + 99) // 100) * 100
 
         stmt = select(DocNumber.numeric).where(
-            DocNumber.is_golden == True,
             DocNumber.status.in_([DocNumStatus.assigned, DocNumStatus.reserved])
         )
         result = await self.session.execute(stmt)
-        occupied_golden_numbers = set(result.scalars().all())
+        occupied_numbers = set(result.scalars().all())
 
+        candidates = []
+        current_check = start_golden
         while len(candidates) < quantity:
-            if checked_num not in occupied_golden_numbers:
-                candidates.append(checked_num)
+            if current_check not in occupied_numbers:
+                candidates.append(current_check)
 
-            checked_num += 100
-
-            if checked_num > 999900:
-                break
+            current_check += 100
+            if current_check > 999900: break
 
         return candidates
 

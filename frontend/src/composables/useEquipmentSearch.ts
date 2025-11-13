@@ -1,5 +1,5 @@
 import apiClient from '@/api'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { EquipmentOut } from '@/types/api'
 
@@ -26,7 +26,7 @@ const fetchEquipment = async (params: SearchParams): Promise<EquipmentOut[]> => 
 export function useEquipmentSearch() {
   const searchParams = ref<SearchParams>({})
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['equipmentSearch', searchParams],
     queryFn: () => fetchEquipment(searchParams.value),
     enabled: false,
@@ -35,7 +35,7 @@ export function useEquipmentSearch() {
 
   const search = (params: SearchParams) => {
     searchParams.value = params
-    refetch()
+    return refetch()
   }
 
   const clearResults = () => {
@@ -44,7 +44,7 @@ export function useEquipmentSearch() {
 
   return {
     results: data,
-    isLoading,
+    isLoading: computed(() => isLoading.value || isRefetching.value),
     isError,
     error,
     search,
