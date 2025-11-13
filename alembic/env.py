@@ -1,20 +1,15 @@
-# alembic/env.py
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
-# --- Импорты из вашего проекта ---
 from app.core.config import settings
 from app.models.base import Base
-# Убедитесь, что все модели импортированы здесь, чтобы Alembic их "видел"
 from app.models import user, equipment, counter, session, doc_number, document, audit
 
-# Это объект конфигурации Alembic
 config = context.config
 
-# Интерпретируем файл конфигурации для логирования Python.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 

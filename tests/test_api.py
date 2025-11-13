@@ -61,11 +61,9 @@ class TestEquipmentAPI:
     
     async def test_create_duplicate_equipment_fails(self, client: AsyncClient, default_admin_headers: dict):
         payload = {"eq_type": "Duplicated Device", "factory_no": "54321"}
-        # Первый запрос должен пройти успешно
         response1 = await client.post("/equipment", json=payload, headers=default_admin_headers)
         assert response1.status_code == 201
         
-        # Второй запрос с теми же данными должен провалиться
         response2 = await client.post("/equipment", json=payload, headers=default_admin_headers)
         assert response2.status_code == 409
         assert "уже существует" in response2.json()["detail"]
@@ -133,13 +131,12 @@ class TestSessionsAndDocumentsFlow:
         reserve_payload = {"equipment_id": equipment_id, "requested_count": 1}
         
         reserve_response = await client.post("/sessions/reserve", json=reserve_payload, headers=default_user_headers)
-        assert reserve_response.status_code == 200 # Ваш эндпоинт возвращает 200, а не 201
+        assert reserve_response.status_code == 200
         
         reserve_data = reserve_response.json()
         session_id = reserve_data["session_id"]
         reserved_number = reserve_data["reserved_numbers"][0]
 
-        # 2. Act: Назначаем зарезервированный номер документу
         assign_payload = {
             "session_id": session_id,
             "doc_name": "Тестовый документ",
@@ -147,7 +144,6 @@ class TestSessionsAndDocumentsFlow:
         }
         assign_response = await client.post("/documents/assign-one", json=assign_payload, headers=default_user_headers)
 
-        # 3. Assert: Проверяем, что документ успешно создан
         assert assign_response.status_code == 200
         assign_data = assign_response.json()
         

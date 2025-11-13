@@ -1,4 +1,3 @@
-# tests/conftest.py
 import asyncio
 from typing import AsyncGenerator, Generator
 from fastapi import Header
@@ -27,8 +26,6 @@ def test_db_url() -> Generator[str, None, None]:
         command.upgrade(alembic_cfg, "head")
         yield sync_db_url.replace("postgresql+psycopg2", "postgresql+asyncpg")
 
-# --- 2. Фикстуры для данных и клиента ---
-
 @pytest.fixture(scope="session")
 def default_admin_headers() -> dict[str, str]:
     return {"X-Test-User": "test_admin"}
@@ -48,7 +45,6 @@ async def default_equipment(test_db_url: str) -> Equipment:
             eq = Equipment(eq_type="Session-Scoped Switch", factory_no="99999")
             session.add(eq)
             await session.flush()
-            # Копируем данные перед закрытием сессии
             equipment_data = {
                 "id": eq.id,
                 "eq_type": eq.eq_type,
@@ -59,7 +55,6 @@ async def default_equipment(test_db_url: str) -> Equipment:
 
     await engine.dispose()
     
-    # Чтобы вернуть объект, похожий на модель, а не просто dict
     class TempEq:
         def __init__(self, data):
             self.id = data["id"]
