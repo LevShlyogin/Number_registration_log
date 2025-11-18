@@ -1,11 +1,10 @@
-import asyncio
 from typing import AsyncGenerator, Generator
 from fastapi import Header
 from sqlalchemy import select
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from testcontainers.postgres import PostgresContainer
 from alembic.config import Config
@@ -97,7 +96,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[lifespan_session] = override_lifespan_session
     
     base_url = "http://test/api/v1"
-    async with AsyncClient(app=app, base_url=base_url) as ac:
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url=base_url) as ac:
         yield ac
         
     app.dependency_overrides.clear()
