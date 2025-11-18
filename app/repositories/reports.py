@@ -70,7 +70,7 @@ class ReportsRepository:
 
         if station_no: where.append(Equipment.station_no == station_no)
         if factory_no: where.append(Equipment.factory_no == factory_no)
-        if order_no: where.append(Equipment.order_no == order_no)
+        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%"))
 
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
@@ -105,7 +105,7 @@ class ReportsRepository:
 
         if station_no: where.append(Equipment.station_no == station_no)
         if factory_no: where.append(Equipment.factory_no == factory_no)
-        if order_no: where.append(Equipment.order_no == order_no)
+        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%"))
 
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)

@@ -69,18 +69,16 @@ import type { AdminDocumentRow, DocumentUpdatePayload } from '@/types/api'
 import SearchFilters from '@/components/common/SearchFilters.vue'
 import { useNotifier } from '@/composables/useNotifier'
 
-// --- ИЗМЕНЕНИЕ ЗДЕСЬ: Обновляем заголовки ---
 const headers = [
   { title: '№ Документа', key: 'doc_no', sortable: true },
-  { title: 'Дата', key: 'reg_date', sortable: true },
+  { title: 'Дата', key: 'reg_date', sortable: true, order: 'desc' },
   { title: 'Наименование', key: 'doc_name', sortable: false },
-  { title: 'Примечание', key: 'note', sortable: false }, // <-- ДОБАВЛЕНО
+  { title: 'Примечание', key: 'note', sortable: false },
   { title: 'Пользователь', key: 'username', sortable: true },
-  { title: '№ заказа', key: 'order_no', sortable: false }, // <-- ДОБАВЛЕНО
+  { title: '№ заказа', key: 'order_no', sortable: false },
   { title: 'Станция/Объект', key: 'station_object', sortable: false },
   { title: 'Действия', key: 'actions', sortable: false, align: 'end' },
 ] as const
-// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const notifier = useNotifier()
 const {
