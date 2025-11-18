@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 import re 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict 
 
 
 class EquipmentCreate(BaseModel):
@@ -59,5 +59,4 @@ class EquipmentOut(BaseModel):
     station_object: str | None
     notes: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

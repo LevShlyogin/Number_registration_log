@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class GoldenSuggestOut(BaseModel):
@@ -20,8 +20,7 @@ class AdminDocumentUpdate(BaseModel):
     order_no: str | None = None
     label: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminDocumentRow(BaseModel):
@@ -44,5 +43,4 @@ class AdminDocumentRow(BaseModel):
     station_object: str | None
     username: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

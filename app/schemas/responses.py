@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from .equipment import EquipmentOut
 from .users import UserInResponse
 
@@ -15,8 +15,7 @@ class CreatedDocumentInfo(BaseModel):
     equipment: EquipmentOut
     user: UserInResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AssignNumberOut(BaseModel):
