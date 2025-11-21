@@ -27,6 +27,12 @@ const fetchReport = async (params: SearchParams): Promise<ReportResponse> => {
   return { items: data, totalItems: data.length }
 }
 
+interface TableOptions {
+  page: number;
+  itemsPerPage: number;
+  sortBy: { key: string; order: 'asc' | 'desc' }[];
+}
+
 /**
  * Получает ВСЕ данные для экспорта, игнорируя пагинацию.
  * @param params - Только параметры фильтрации.
@@ -45,10 +51,10 @@ const fetchAllReportItemsForExport = async (
 
 export function useReports(initialFilters: Partial<SearchParams> = {}) {
   // Состояние для настроек таблицы (пагинация, сортировка)
-  const tableOptions = ref({
+  const tableOptions = ref<TableOptions>({
     page: 1,
     itemsPerPage: 10,
-    sortBy: [],
+    sortBy: [{ key: 'reg_date', order: 'desc' }],
   })
 
   // Функция для создания объекта фильтров по умолчанию

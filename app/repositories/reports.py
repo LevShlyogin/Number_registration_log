@@ -75,7 +75,9 @@ class ReportsRepository:
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
         if where: stmt = stmt.where(and_(*where))
-        stmt = stmt.order_by(Document.reg_date.asc(), Document.numeric.asc())
+
+        stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
+
         res = await self.session.execute(stmt)
         return res.fetchall()
 
@@ -114,5 +116,6 @@ class ReportsRepository:
         if where: stmt = stmt.where(and_(*where))
 
         stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
+
         res = await self.session.execute(stmt)
         return res.fetchall()

@@ -27,6 +27,12 @@ const fetchAdminDocuments = async (params: SearchParams): Promise<AdminSearchRes
   return { items: data, totalItems: data.length }
 }
 
+interface TableOptions {
+  page: number;
+  itemsPerPage: number;
+  sortBy: { key: string; order: 'asc' | 'desc' }[];
+}
+
 /**
  * Обновляет данные документа на сервере.
  * @param id - ID документа.
@@ -64,10 +70,10 @@ const fetchAllAdminItemsForExport = async (
 export function useAdmin() {
   const queryClient = useQueryClient()
 
-  const tableOptions = ref({
+  const tableOptions = ref<TableOptions>({
     page: 1,
     itemsPerPage: 10,
-    sortBy: [],
+    sortBy: [{ key: 'reg_date', order: 'desc' }],
   })
 
   const createDefaultFilters = () => ({
