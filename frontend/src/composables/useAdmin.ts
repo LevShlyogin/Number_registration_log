@@ -1,4 +1,4 @@
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type {
   SearchParams,
@@ -8,12 +8,6 @@ import type {
 } from '@/types/api'
 import apiClient from '@/api'
 
-// --- РЕАЛЬНЫЕ API ФУНКЦИИ ---
-
-/**
- * Получает данные для админской таблицы с сервера.
- * @param params - Параметры фильтрации и пагинации.
- */
 const fetchAdminDocuments = async (params: SearchParams): Promise<AdminSearchResponse> => {
   const filteredParams = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v != null && v !== ''),
@@ -23,21 +17,15 @@ const fetchAdminDocuments = async (params: SearchParams): Promise<AdminSearchRes
     params: filteredParams,
   })
 
-  // Как и в отчетах, оборачиваем в объект для пагинации
   return { items: data, totalItems: data.length }
 }
 
 interface TableOptions {
-  page: number;
-  itemsPerPage: number;
-  sortBy: { key: string; order: 'asc' | 'desc' }[];
+  page: number
+  itemsPerPage: number
+  sortBy: { key: string; order: 'asc' | 'desc' }[]
 }
 
-/**
- * Обновляет данные документа на сервере.
- * @param id - ID документа.
- * @param payload - Данные для обновления.
- */
 const updateDocument = async ({
   id,
   payload,
@@ -49,10 +37,6 @@ const updateDocument = async ({
   return data
 }
 
-/**
- * Получает ВСЕ данные для экспорта из админки.
- * @param params - Только параметры фильтрации.
- */
 const fetchAllAdminItemsForExport = async (
   params: Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>,
 ): Promise<AdminDocumentRow[]> => {
@@ -64,8 +48,6 @@ const fetchAllAdminItemsForExport = async (
   })
   return data
 }
-
-// --- КОМПОЗАБЛ ---
 
 export function useAdmin() {
   const queryClient = useQueryClient()
@@ -94,24 +76,21 @@ export function useAdmin() {
   const filters =
     reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>(createDefaultFilters())
 
-  const queryParams = computed(() => ({
-    ...tableOptions.value,
+  const apiQueryParams = computed(() => ({
     ...filters,
   }))
 
-  const queryKey = ['adminDocuments', queryParams]
+  const queryKey = ['adminDocuments', apiQueryParams]
 
-  // Query для получения данных
   const { data, isLoading, isError, error } = useQuery({
     queryKey,
-    queryFn: () => fetchAdminDocuments(queryParams.value),
+    queryFn: () => fetchAdminDocuments(apiQueryParams.value),
+    staleTime: 1000 * 60 * 5, // 5 минут
   })
 
-  // Mutation для сохранения изменений
   const { mutate: saveDocument, isPending: isSaving } = useMutation({
     mutationFn: updateDocument,
     onSuccess: (updatedDocument) => {
-      // При успехе обновляем кэш, чтобы UI мгновенно отразил изменения
       queryClient.setQueryData<AdminSearchResponse>(queryKey, (oldData) => {
         if (!oldData) return oldData
         return {
@@ -123,6 +102,14 @@ export function useAdmin() {
       })
     },
   })
+
+  watch(
+    () => filters,
+    () => {
+      tableOptions.value.page = 1
+    },
+    { deep: true },
+  )
 
   const resetFilters = () => {
     Object.assign(filters, createDefaultFilters())
