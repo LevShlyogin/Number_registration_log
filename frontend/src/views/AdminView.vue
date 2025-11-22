@@ -33,7 +33,6 @@
         v-model:page="tableOptions.page"
         :headers="headers"
         :items="documents?.items || []"
-        :items-length="documents?.totalItems || 0"
         :loading="isLoading"
         hover
         density="compact"
@@ -127,8 +126,8 @@ async function exportToExcel() {
       '№ Документа': item.doc_no,
       'Дата регистрации': item.reg_date,
       'Наименование документа': item.doc_name,
-      'Примечание': item.note,
-      'Пользователь': item.username,
+      Примечание: item.note,
+      Пользователь: item.username,
       '№ заказа': item.order_no,
       'Станция/Объект': item.station_object,
     }))

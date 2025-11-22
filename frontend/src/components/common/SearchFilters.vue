@@ -57,7 +57,6 @@
             label="№ заказа"
             clearable
             hide-details="auto"
-            :rules="[rules.orderNo]"
           ></v-text-field
         ></v-col>
         <v-col cols="12" sm="6" md="3">
