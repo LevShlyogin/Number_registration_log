@@ -85,7 +85,8 @@ export function useAdmin() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey,
     queryFn: () => fetchAdminDocuments(apiQueryParams.value),
-    staleTime: 1000 * 60 * 5, // 5 минут
+    staleTime: 1000 * 60 * 5,
+    placeholderData: (previousData) => previousData,
   })
 
   const { mutate: saveDocument, isPending: isSaving } = useMutation({
@@ -104,11 +105,12 @@ export function useAdmin() {
   })
 
   watch(
-    () => filters,
-    () => {
-      tableOptions.value.page = 1
+    () => JSON.stringify(filters),
+    (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        tableOptions.value.page = 1
+      }
     },
-    { deep: true },
   )
 
   const resetFilters = () => {

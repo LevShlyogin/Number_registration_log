@@ -31,7 +31,6 @@ const fetchAllReportItemsForExport = async (
 }
 
 export function useReports(initialFilters: Partial<SearchParams> = {}) {
-  // Состояние для настроек таблицы (только UI)
   const tableOptions = ref<TableOptions>({
     page: 1,
     itemsPerPage: 10,
@@ -68,19 +67,20 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
   const { data, isLoading, isError, error } = useQuery<ReportResponse>({
     queryKey: ['reports', apiQueryParams],
     queryFn: () => fetchReport(apiQueryParams.value),
-    staleTime: 1000 * 60 * 5, // Кэшируем на 5 минут
+    staleTime: 1000 * 60 * 5,
+    placeholderData: (previousData) => previousData,
   })
 
   // Если фильтры изменились -> на первую страницу
   watch(
-    () => filters,
-    () => {
-      tableOptions.value.page = 1
+    () => JSON.stringify(filters),
+    (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        tableOptions.value.page = 1
+      }
     },
-    { deep: true },
   )
 
-  // Функция сброса
   const resetFilters = () => {
     Object.assign(filters, createDefaultFilters(), initialFilters)
     tableOptions.value.page = 1
