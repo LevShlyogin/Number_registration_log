@@ -7,7 +7,13 @@ class Settings(BaseSettings):
     app_env: str = Field(default="dev", alias="APP_ENV")
     database_url: str = Field(alias="DATABASE_URL")
     default_ttl_seconds: int = Field(default=1800, alias="DEFAULT_TTL_SECONDS")
-    admin_users: List[str] = ["vgrubtsov", "yuaalekseeva", "lrshlyogin", "pyagavrilov"]
+
+    # Ключ для валидации JWT (совпадает с auth-service)
+    SECRET_KEY: str = Field(..., alias="SECRET_KEY")
+    ALGORITHM: str = "HS256"
+
+    # Список администраторов системы
+    admin_users: List[str] = ["vgrubtsov", "yuaalekseeva", "lrshlyogin", "pyagavrilov", "dev_user", "admin"]
 
     PROJECT_NAME: str = "Журнал регистрации УТЗ"
     BACKEND_CORS_ORIGINS: List[str] = []

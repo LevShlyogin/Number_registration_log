@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # 1. База данных (PostgreSQL)
+  db:
+    image: postgres:16-alpine
+    container_name: reg-journal-db
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Монтируем скрипт инициализации
+      - ./init_dbs.sql:/docker-entrypoint-initdb.d/init_dbs.sql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      # УБИРАЕМ POSTGRES_DB, чтобы сработал init_dbs.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ] # Упростили проверку
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 2. Сервис Авторизации
+  auth-service:
+    build:
+      context: ./authentication-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # ТЕПЕРЬ ПОДКЛЮЧАЕМСЯ К POSTGRES
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/auth_service_db
+      - SECRET_KEY=super_secret_shared_key_for_testing_123
+      - LDAP_SERVER=ldap://dc03.utz.local
+      - LDAP_PORT=389
+      - LDAP_BASE_DN=DC=utz,DC=local
+      - LDAP_USER_SUFFIX=@utz.local
+
+  # 3. Бэкенд Журнала
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reg-journal-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    volumes:
+      - ./app:/app/app
+    environment:
+      # Подключаемся к своей базе reg_journal
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/reg_journal
+      - APP_ENV=dev
+
+      # Entrypoint ждет доступности Postgres
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=reg_journal # Ждем конкретную БД
+      - POSTGRES_PASSWORD=postgres
+
+      - SECRET_KEY=super_secret_shared_key_for_testing_123
+      - ADMIN_USERS=["vgrubtsov", "yuaalekseeva", "dev_user", "ВАШ_ЛОГИН"]
+      - BACKEND_CORS_ORIGINS=["http://localhost", "http://localhost:80"]
+    ports:
+      - "8000:8000"
+
+  # 4. Фронтенд
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: reg-journal-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:

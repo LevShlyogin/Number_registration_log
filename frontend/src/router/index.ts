@@ -1,10 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { useWizardStore } from '@/stores/wizard'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { title: 'Вход', public: true },
+    },
     {
       path: '/',
       component: DefaultLayout,
@@ -111,14 +118,33 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from) => {
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+
+  // 1. Проверка авторизации
+  if (!to.meta.public && !authStore.isAuthenticated) {
+    return next({ name: 'login' })
+  }
+
+  // 2. Если пользователь нажал F5, стейт сбросился, но токен в localStorage есть
+  if (authStore.isAuthenticated && !authStore.user) {
+    await authStore.fetchUser()
+  }
+
+  // 3. Если уже авторизован - не пускать на логин
+  if (to.name === 'login' && authStore.isAuthenticated) {
+    return next({ name: 'home' })
+  }
+
+  // 4. Очистка визарда при выходе
   if (from.path.startsWith('/wizard') && !to.path.startsWith('/wizard')) {
     const wizardStore = useWizardStore()
     if (wizardStore.hasSelectedEquipment || wizardStore.hasActiveSession) {
-      console.log('Leaving wizard, resetting state...')
       wizardStore.reset()
     }
   }
+
+  next()
 })
 
 router.afterEach((to) => {

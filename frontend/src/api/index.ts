@@ -9,11 +9,12 @@ const apiClient: AxiosInstance = axios.create({
   },
 })
 
+// Добавляем токен в заголовок
 apiClient.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore()
-    if (authStore.user?.username) {
-      config.headers['X-User'] = authStore.user.username
+    if (authStore.token) {
+      config.headers['Authorization'] = `Bearer ${authStore.token}`
     }
     return config
   },
@@ -22,12 +23,16 @@ apiClient.interceptors.request.use(
   },
 )
 
+// Обрабатываем истечение токена (401)
 apiClient.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
-    console.error('Axios error:', error.response?.data || error.message)
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      const authStore = useAuthStore()
+      authStore.logout()
+    }
     return Promise.reject(error)
   },
 )
