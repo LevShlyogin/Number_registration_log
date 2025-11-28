@@ -13,23 +13,26 @@
 
         <v-spacer></v-spacer>
 
-        <!-- Навигационные ссылки -->
+        <!-- Навигационные ссылки Десктоп -->
         <div class="d-none d-md-flex">
-          <v-btn
-            v-for="link in navLinks"
-            :key="link.to"
-            :to="link.to"
-            variant="text"
-            class="nav-link"
-            color="secondary"
-          >
-            <v-icon :icon="link.icon" start></v-icon>
-            {{ link.label }}
-          </v-btn>
+          <template v-for="link in navLinks" :key="link.to">
+            <v-btn
+              v-if="!link.adminOnly || auth.isAdmin"
+              :to="link.to"
+              variant="text"
+              class="nav-link"
+              color="secondary"
+            >
+              <v-icon :icon="link.icon" start></v-icon>
+              {{ link.label }}
+            </v-btn>
+          </template>
         </div>
 
-        <!-- Кнопка темы и информация о пользователе -->
+        <!-- Кнопка темы -->
         <theme-toggle-button />
+
+        <!-- Информация о пользователе и Выход -->
         <div v-if="auth.user" class="user-info ml-3 pl-3 border-s">
           <v-avatar size="32" class="mr-2">
             <v-icon icon="mdi-account-circle" color="secondary"></v-icon>
@@ -38,11 +41,26 @@
             <div class="username">{{ auth.fullName }}</div>
             <div class="login">{{ auth.user.username }}</div>
           </div>
+
+          <!-- Кнопка выхода Десктоп -->
+          <v-tooltip text="Выйти" location="bottom">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon="mdi-logout"
+                variant="text"
+                size="small"
+                color="medium-emphasis"
+                class="ml-1"
+                @click="auth.logout()"
+              ></v-btn>
+            </template>
+          </v-tooltip>
         </div>
 
         <!-- Мобильное меню (бургер) -->
         <v-app-bar-nav-icon
-          class="d-md-none"
+          class="d-md-none ml-2"
           @click.stop="isNavDrawerOpen = !isNavDrawerOpen"
         ></v-app-bar-nav-icon>
       </v-container>
@@ -59,6 +77,11 @@
 
     <!-- Мобильная навигация (Drawer) -->
     <v-navigation-drawer v-model="isNavDrawerOpen" temporary location="right">
+      <div v-if="auth.user" class="pa-4 border-b">
+        <div class="text-subtitle-1 font-weight-bold">{{ auth.fullName }}</div>
+        <div class="text-caption text-medium-emphasis">{{ auth.user.username }}</div>
+      </div>
+
       <v-list>
         <template v-for="link in navLinks" :key="link.to">
           <v-list-item
@@ -69,6 +92,16 @@
             @click="isNavDrawerOpen = false"
           ></v-list-item>
         </template>
+
+        <v-divider class="my-2"></v-divider>
+
+        <!-- Кнопка ВЫХОД (Мобилка) -->
+        <v-list-item
+          prepend-icon="mdi-logout"
+          title="Выйти"
+          color="error"
+          @click="handleLogout"
+        ></v-list-item>
       </v-list>
     </v-navigation-drawer>
 
@@ -79,7 +112,7 @@
       </v-container>
     </v-main>
 
-    <!-- --- ГЛОБАЛЬНЫЙ КОМПОНЕНТ УВЕДОМЛЕНИЙ --- -->
+    <!-- Уведомления -->
     <v-snackbar
       v-model="notifier.show.value"
       :color="notifier.color.value"
@@ -122,6 +155,11 @@ const navLinks = [
 ]
 
 const isFetching = useIsFetching()
+
+function handleLogout() {
+  auth.logout()
+  isNavDrawerOpen.value = false
+}
 
 onMounted(() => {
   if (!auth.isAuthenticated) {
