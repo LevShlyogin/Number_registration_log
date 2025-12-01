@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     # Список администраторов системы
-    admin_users: List[str] = ["vgrubtsov", "yuaalekseeva", "lrshlyogin", "pyagavrilov", "dev_user", "admin"]
+    admin_users: List[str] = ["vgrubtsov", "yuaalekseeva", "lrshlyogin", "pyagavrilov", "mabaturin"]
 
     PROJECT_NAME: str = "Журнал регистрации УТЗ"
     BACKEND_CORS_ORIGINS: List[str] = []
