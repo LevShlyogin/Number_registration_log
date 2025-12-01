@@ -1,36 +1,25 @@
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { SearchParams, ReportResponse, ReportItem } from '@/types/api'
 import apiClient from '@/api'
 
-// --- РЕАЛЬНЫЕ API ФУНКЦИИ ---
-
-/**
- * Получает данные для отчета с сервера.
- * @param params - Параметры фильтрации и пагинации.
- */
 const fetchReport = async (params: SearchParams): Promise<ReportResponse> => {
-  // Убираем пустые/null значения, чтобы не передавать их в URL
+  // Убираем пустые значения
   const filteredParams = Object.fromEntries(
     Object.entries(params).filter(([, v]) => v != null && v !== ''),
   )
 
-  // Делаем реальный запрос к бэкенду
   const { data } = await apiClient.get<ReportItem[]>('/reports', { params: filteredParams })
 
-  // Бэкенд возвращает простой массив. Для пагинации v-data-table-server
-  // нам нужна структура { items, totalItems }.
-  // Так как бэкенд не возвращает общее количество, мы будем использовать
-  // длину полученного массива. Это означает, что пагинация будет работать
-  // только на клиенте для уже загруженных данных.
-  // Для настоящей серверной пагинации бэкенд должен возвращать `totalItems`.
   return { items: data, totalItems: data.length }
 }
 
-/**
- * Получает ВСЕ данные для экспорта, игнорируя пагинацию.
- * @param params - Только параметры фильтрации.
- */
+interface TableOptions {
+  page: number
+  itemsPerPage: number
+  sortBy: { key: string; order: 'asc' | 'desc' }[]
+}
+
 const fetchAllReportItemsForExport = async (
   params: Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>,
 ): Promise<ReportItem[]> => {
@@ -41,17 +30,13 @@ const fetchAllReportItemsForExport = async (
   return data
 }
 
-// --- КОМПОЗАБЛ ---
-
 export function useReports(initialFilters: Partial<SearchParams> = {}) {
-  // Состояние для настроек таблицы (пагинация, сортировка)
-  const tableOptions = ref({
+  const tableOptions = ref<TableOptions>({
     page: 1,
     itemsPerPage: 10,
-    sortBy: [],
+    sortBy: [{ key: 'reg_date', order: 'desc' }],
   })
 
-  // Функция для создания объекта фильтров по умолчанию
   const createDefaultFilters = () => ({
     session_id: undefined,
     username: undefined,
@@ -67,29 +52,38 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
     q: '',
   })
 
-  // Реактивный объект с текущими значениями фильтров
+  // Реактивный объект фильтров
   const filters = reactive<Omit<SearchParams, 'page' | 'itemsPerPage' | 'sortBy'>>({
     ...createDefaultFilters(),
     ...initialFilters,
   })
 
-  // Вычисляемое свойство, которое объединяет фильтры и опции таблицы
-  // в один объект для отправки на сервер.
-  const queryParams = computed<SearchParams>(() => ({
-    ...tableOptions.value,
+  // Пагинация и сортировка происходят на клиенте.
+  const apiQueryParams = computed<SearchParams>(() => ({
     ...filters,
   }))
 
-  // TanStack Query для получения и кэширования данных отчета
+  // TanStack Query
   const { data, isLoading, isError, error } = useQuery<ReportResponse>({
-    queryKey: ['reports', queryParams], // Ключ кэша зависит от параметров
-    queryFn: () => fetchReport(queryParams.value),
+    queryKey: ['reports', apiQueryParams],
+    queryFn: () => fetchReport(apiQueryParams.value),
+    staleTime: 1000 * 60 * 5,
+    placeholderData: (previousData) => previousData,
   })
 
-  // Функция сброса фильтров к начальному состоянию
+  // Если фильтры изменились -> на первую страницу
+  watch(
+    () => JSON.stringify(filters),
+    (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        tableOptions.value.page = 1
+      }
+    },
+  )
+
   const resetFilters = () => {
     Object.assign(filters, createDefaultFilters(), initialFilters)
-    tableOptions.value.page = 1 // Сбрасываем на первую страницу
+    tableOptions.value.page = 1
   }
 
   return {
@@ -99,7 +93,7 @@ export function useReports(initialFilters: Partial<SearchParams> = {}) {
     error,
     tableOptions,
     filters,
-    resetFiltersAndRefetch: resetFilters, // Переименовано для ясности
-    fetchAllReportItemsForExport: () => fetchAllReportItemsForExport(filters), // Передаем текущие фильтры
+    resetFiltersAndRefetch: resetFilters,
+    fetchAllReportItemsForExport: () => fetchAllReportItemsForExport(filters),
   }
 }
