@@ -74,7 +74,6 @@ class ExcelImporterService:
                 user.department = department
 
             # equipment (по совокупности полей считаем "одинаковым")
-            from sqlalchemy import and_
             res = await self.session.execute(
                 select(self.eq_repo.session.get_bind().mapper.mapped_table)
             )

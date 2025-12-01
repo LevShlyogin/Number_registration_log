@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, CurrentUser
-from app.core.db import lifespan_session
-from app.schemas.admin import GoldenSuggestOut
-from app.services.admin import AdminService
 
 router = APIRouter()
 
@@ -19,17 +15,3 @@ async def check_access(
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
     return {"is_admin": True}
-
-
-@router.get("/golden-suggest", response_model=GoldenSuggestOut)
-async def golden_suggest(
-        limit: int = 10,
-        session: AsyncSession = Depends(lifespan_session),
-        user: CurrentUser = Depends(get_current_user),
-):
-    """Предлагает свободные 'золотые' номера (только для админов)."""
-    if not user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступ запрещен")
-    svc = AdminService(session)
-    nums = await svc.suggest_golden(limit=limit)
-    return GoldenSuggestOut(golden_numbers=nums)

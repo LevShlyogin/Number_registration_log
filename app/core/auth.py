@@ -20,11 +20,11 @@ async def get_current_user(
 ) -> CurrentUser:
     """
     ВРЕМЕННАЯ ЗАГЛУШКА ДЛЯ РАЗРАБОТКИ.
-    Всегда возвращает пользователя 'dev_user' с правами администратора.
+    Использует 'x_user' из заголовка, если он есть, иначе 'dev_user'.
     """
-    dev_username = "dev_user"
+    username = x_user if x_user else "dev_user"
     svc = UsersService(session)
-    user = await svc.get_or_create_by_username(dev_username)
+    user = await svc.get_or_create_by_username(username)
 
     return CurrentUser(id=user.id, username=user.username, is_admin=True)
 

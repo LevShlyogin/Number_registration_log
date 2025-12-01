@@ -46,7 +46,7 @@ async def search_equipment(
 async def create_equipment(
         eq_in: EquipmentCreate,
         session: AsyncSession = Depends(lifespan_session),
-        admin_user: CurrentUser = Depends(get_current_admin_user),
+        _admin_user: CurrentUser = Depends(get_current_admin_user),
 ):
     """Создание нового объекта оборудования. Всегда работает с JSON."""
     try:

@@ -34,6 +34,7 @@ black = "^24.4.2"
 isort = "^5.13.2"
 testcontainers = {extras = ["postgres"], version = "^4.13.2"}
 faker = "^38.0.0"
+vulture = "^2.14"
 
 [tool.black]
 line-length = 100

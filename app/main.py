@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,26 +8,38 @@ from app.core.config import settings
 from app.core import db
 from app.tasks.cleanup import start_scheduler, stop_scheduler
 from app.routers import equipment, documents, sessions, reports, suggest, admin, importer, users
+from app.middleware.log_requests import LogRequestsMiddleware
+
+# Основной логгер
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Логгер для использования API, который будет писать в отдельный файл
+api_usage_logger = logging.getLogger("api_usage")
+api_usage_logger.setLevel(logging.INFO)
+# Добавляем обработчик, который пишет в файл 'api_usage.log' с ротацией
+# maxBytes=5MB, 3 бэкап-файла
+handler = RotatingFileHandler("api_usage.log", maxBytes=5*1024*1024, backupCount=3)
+api_usage_logger.addHandler(handler)
+api_usage_logger.propagate = False # Не передавать сообщения в основной логгер
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Код, который выполняется при старте
     start_scheduler(db.SessionLocal)
     logger.info("Scheduler started.")
     yield
-    # Код, который выполняется при остановке
     stop_scheduler()
     logger.info("Scheduler stopped.")
-
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url="/api/v1/openapi.json",
     lifespan=lifespan
 )
+
+# --- Подключаем Middleware ---
+app.add_middleware(LogRequestsMiddleware)
 
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(

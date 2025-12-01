@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, and_, func, or_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document

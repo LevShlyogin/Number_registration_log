@@ -16,7 +16,7 @@ class EquipmentCreate(BaseModel):
 
     @field_validator("factory_no")
     @classmethod
-    def validate_factory_no(cls, v: str | None) -> str | None:
+    def validate_factory_no(_cls, v: str | None) -> str | None:
         """Проверка: не более 5 символов и только цифры."""
         if v is None:
             return v  # Пропускаем, если значение не передано
@@ -28,7 +28,7 @@ class EquipmentCreate(BaseModel):
 
     @field_validator("order_no")
     @classmethod
-    def validate_order_no(cls, v: str | None) -> str | None:
+    def validate_order_no(_cls, v: str | None) -> str | None:
         """Проверка: шаблон 5 цифр - 2 цифры - 5 цифр."""
         if v is None:
             return v  # Пропускаем, если значение не передано
@@ -38,7 +38,7 @@ class EquipmentCreate(BaseModel):
     
     @field_validator("station_no")
     @classmethod
-    def validate_station_no(cls, v: str | None) -> str | None:
+    def validate_station_no(_cls, v: str | None) -> str | None:
         """Проверка: не более 2 символов и только цифры."""
         if v is None:
             return v  # Пропускаем, если значение не передано

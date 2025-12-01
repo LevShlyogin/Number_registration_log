@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, DateTime, func, UniqueConstraint, Index
+from sqlalchemy import ForeignKey, DateTime, func, Index
 from sqlalchemy.dialects.postgresql import CITEXT
 
 from app.models.base import Base
