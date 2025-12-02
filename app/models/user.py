@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import CITEXT
 

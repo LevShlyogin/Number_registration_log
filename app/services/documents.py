@@ -9,7 +9,6 @@ from app.repositories.sessions import SessionsRepository
 from app.repositories.audit import AuditRepository
 from app.repositories.equipment import EquipmentRepository
 from app.repositories.users import UsersRepository
-from app.models.session import SessionStatus
 from app.utils.numbering import format_doc_no, is_golden
 from app.schemas.admin import AdminDocumentUpdate
 

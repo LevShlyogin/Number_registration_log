@@ -33,7 +33,7 @@ class EquipmentService:
             await self.session.commit()
             await self.session.refresh(eq)
             return eq
-        except IntegrityError as e:
+        except IntegrityError:
             await self.session.rollback()
             
             raise HTTPException(
