@@ -33,7 +33,6 @@
         v-model:page="tableOptions.page"
         :headers="headers"
         :items="documents?.items || []"
-        :items-length="documents?.totalItems || 0"
         :loading="isLoading"
         hover
         density="compact"
@@ -69,18 +68,16 @@ import type { AdminDocumentRow, DocumentUpdatePayload } from '@/types/api'
 import SearchFilters from '@/components/common/SearchFilters.vue'
 import { useNotifier } from '@/composables/useNotifier'
 
-// --- ИЗМЕНЕНИЕ ЗДЕСЬ: Обновляем заголовки ---
 const headers = [
   { title: '№ Документа', key: 'doc_no', sortable: true },
-  { title: 'Дата', key: 'reg_date', sortable: true },
+  { title: 'Дата', key: 'reg_date', sortable: true, order: 'desc' },
   { title: 'Наименование', key: 'doc_name', sortable: false },
-  { title: 'Примечание', key: 'note', sortable: false }, // <-- ДОБАВЛЕНО
+  { title: 'Примечание', key: 'note', sortable: false },
   { title: 'Пользователь', key: 'username', sortable: true },
-  { title: '№ заказа', key: 'order_no', sortable: false }, // <-- ДОБАВЛЕНО
+  { title: '№ заказа', key: 'order_no', sortable: false },
   { title: 'Станция/Объект', key: 'station_object', sortable: false },
   { title: 'Действия', key: 'actions', sortable: false, align: 'end' },
 ] as const
-// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const notifier = useNotifier()
 const {
@@ -129,8 +126,8 @@ async function exportToExcel() {
       '№ Документа': item.doc_no,
       'Дата регистрации': item.reg_date,
       'Наименование документа': item.doc_name,
-      'Примечание': item.note,
-      'Пользователь': item.username,
+      Примечание: item.note,
+      Пользователь: item.username,
       '№ заказа': item.order_no,
       'Станция/Объект': item.station_object,
     }))

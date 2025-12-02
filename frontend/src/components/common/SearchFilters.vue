@@ -17,41 +17,59 @@
             hide-details="auto"
           ></v-text-field
         ></v-col>
-        <v-col cols="12" sm="6" md="3"
-          ><v-text-field
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
             v-model="modelValue.station_no"
             label="№ станционный"
             clearable
             hide-details="auto"
             :rules="[rules.stationNo]"
-          ></v-text-field
-        ></v-col>
-        <v-col cols="12" sm="6" md="3"
-          ><v-text-field
+          >
+            <template #append-inner>
+              <v-tooltip text="Фильтрует по объекту, но не отображается в таблице" location="top">
+                <template #activator="{ props }">
+                  <v-icon v-bind="props" icon="mdi-information-outline" size="small"></v-icon>
+                </template>
+              </v-tooltip>
+            </template>
+          </v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
             v-model="modelValue.factory_no"
             label="№ заводской"
             clearable
             hide-details="auto"
             :rules="[rules.factoryNo]"
-          ></v-text-field
-        ></v-col>
+          >
+            <template #append-inner>
+              <v-tooltip text="Фильтрует по объекту, но не отображается в таблице" location="top">
+                <template #activator="{ props }">
+                  <v-icon v-bind="props" icon="mdi-information-outline" size="small"></v-icon>
+                </template>
+              </v-tooltip>
+            </template>
+          </v-text-field>
+        </v-col>
         <v-col cols="12" sm="6" md="3"
           ><v-text-field
             v-model="modelValue.order_no"
             label="№ заказа"
             clearable
             hide-details="auto"
-            :rules="[rules.orderNo]"
           ></v-text-field
         ></v-col>
-        <v-col cols="12" sm="6" md="3"
-          ><v-text-field
-            v-model="modelValue.label"
-            label="Маркировка"
-            clearable
-            hide-details="auto"
-          ></v-text-field
-        ></v-col>
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field v-model="modelValue.label" label="Маркировка" clearable hide-details="auto">
+            <template #append-inner>
+              <v-tooltip text="Фильтрует по объекту, но не отображается в таблице" location="top">
+                <template #activator="{ props }">
+                  <v-icon v-bind="props" icon="mdi-information-outline" size="small"></v-icon>
+                </template>
+              </v-tooltip>
+            </template>
+          </v-text-field>
+        </v-col>
         <v-col cols="12" sm="6" md="3"
           ><v-text-field
             v-model="modelValue.doc_name"
@@ -68,14 +86,22 @@
             hide-details="auto"
           ></v-text-field
         ></v-col>
-        <v-col cols="12" sm="6" md="3"
-          ><v-text-field
+        <v-col cols="12" sm="6" md="3">
+          <v-text-field
             v-model="modelValue.eq_type"
             label="Тип оборудования"
             clearable
             hide-details="auto"
-          ></v-text-field
-        ></v-col>
+          >
+            <template #append-inner>
+              <v-tooltip text="Фильтрует по объекту, но не отображается в таблице" location="top">
+                <template #activator="{ props }">
+                  <v-icon v-bind="props" icon="mdi-information-outline" size="small"></v-icon>
+                </template>
+              </v-tooltip>
+            </template>
+          </v-text-field>
+        </v-col>
         <v-col cols="12" sm="6" md="3"
           ><v-text-field
             v-model="modelValue.date_from"
@@ -109,8 +135,7 @@ const emit = defineEmits(['reset'])
 const rules = {
   factoryNo: (v: string) => !v || /^\d{1,5}$/.test(v) || 'Не более 5 цифр',
   stationNo: (v: string) => !v || /^\d{1,2}$/.test(v) || 'Не более 2 цифр',
-  orderNo: (v: string) =>
-    !v || /^\d{5}-\d{2}-\d{5}$/.test(v) || 'Формат XXXXX-XX-XXXXX',
+  orderNo: (v: string) => !v || /^\d{5}-\d{2}-\d{5}$/.test(v) || 'Формат XXXXX-XX-XXXXX',
 }
 
 function reset() {

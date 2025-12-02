@@ -70,12 +70,14 @@ class ReportsRepository:
 
         if station_no: where.append(Equipment.station_no == station_no)
         if factory_no: where.append(Equipment.factory_no == factory_no)
-        if order_no: where.append(Equipment.order_no == order_no)
+        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%"))
 
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
         if where: stmt = stmt.where(and_(*where))
-        stmt = stmt.order_by(Document.reg_date.asc(), Document.numeric.asc())
+
+        stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
+
         res = await self.session.execute(stmt)
         return res.fetchall()
 
@@ -105,7 +107,7 @@ class ReportsRepository:
 
         if station_no: where.append(Equipment.station_no == station_no)
         if factory_no: where.append(Equipment.factory_no == factory_no)
-        if order_no: where.append(Equipment.order_no == order_no)
+        if order_no: where.append(Equipment.order_no.ilike(f"%{order_no}%"))
 
         if date_from: where.append(Document.reg_date >= date_from)
         if date_to: where.append(Document.reg_date <= date_to)
@@ -114,5 +116,6 @@ class ReportsRepository:
         if where: stmt = stmt.where(and_(*where))
 
         stmt = stmt.order_by(Document.reg_date.desc(), Document.numeric.desc())
+
         res = await self.session.execute(stmt)
         return res.fetchall()
