@@ -36,6 +36,7 @@ services:
     env_file:
       - .env
     environment:
+      - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL}
       - APP_ENV=${APP_ENV}
       - ADMIN_USERS=${ADMIN_USERS}
