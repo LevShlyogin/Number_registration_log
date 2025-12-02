@@ -10,6 +10,12 @@ RUN npm install
 # Копируем весь остальной код фронтенда
 COPY . .
 
+ARG VITE_API_BASE_URL
+ARG VITE_AUTH_SERVICE_URL
+
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_AUTH_SERVICE_URL=$VITE_AUTH_SERVICE_URL
+
 # Собираем приложение для production. Результат будет в папке /app/dist/
 RUN npm run build
 

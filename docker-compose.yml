@@ -51,6 +51,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_AUTH_SERVICE_URL: ${VITE_AUTH_SERVICE_URL}
     container_name: reg-journal-frontend
     restart: unless-stopped
     depends_on:
